@@ -35,9 +35,9 @@ class ApiDatabaseClient:
         load_dotenv()
         # Base URL includes /db, so endpoints are relative to http://localhost:8000/db
         self.base_url = os.getenv("API_BASE_URL", "http://localhost:8000/db")
-        self.api_key = os.getenv("API_KEY", "demo_key")
+        # No authentication required - /db endpoints are public
         self.session = requests.Session()
-        self.session.headers.update({"Authorization": f"Bearer {self.api_key}"})
+        self.session.headers.update({"Content-Type": "application/json"})
 
     def kill_trade_signal(self, token: str) -> bool:
         """Call the admin API to check if a trade should be force-exited for a token."""
@@ -56,7 +56,7 @@ class ApiDatabaseClient:
         
     def get_nifties_token(self) -> list[str]:
         """Fetch the list of Nifty tokens from the API server."""
-        url = f"{self.base_url}/nifty-tokens"
+        url = f"{self.base_url}/indices/nifty-tokens"
         try:
             resp = self.session.get(url)
             resp.raise_for_status()
@@ -101,22 +101,12 @@ class ApiDatabaseClient:
         return df
 
     def fetch_latest_ltp(self, stock_token: str = '99926009'):
-        """Fetch the latest LTP for a stock token."""
-        url = f"{self.base_url}/ltp"
-        payload = {"stock_token": stock_token}
-        resp = self.session.post(url, json=payload)
+        url = f"{self.base_url}/indices/ltp"
+        params = {"stock_token": stock_token}
+        resp = self.session.get(url, params=params)
         resp.raise_for_status()
         data = resp.json()["data"]
         return data["last_update"], data["ltp"]
-
-    def fetch_stock_trend(self, stock_token: str):
-        """Fetch the current trend for a stock token."""
-        url = f"{self.base_url}/trend"
-        payload = {"stock_token": stock_token}
-        resp = self.session.post(url, json=payload)
-        resp.raise_for_status()
-        data = resp.json()["data"]
-        return data["trend_type"]
 
 
 # --- Strategy Orchestration Class ---
@@ -124,6 +114,18 @@ class StrategyTrader:
     def __init__(self, api_client):
         # Store the API client instance for data access
         self.api = api_client
+
+    def is_market_open(self) -> bool:
+        """
+        Check if the market is currently open.
+        Market hours: 9:30 AM to 2:00 PM (14:00) IST
+        Returns True if market is open, False otherwise.
+        """
+        current_time = datetime.now(IST).time()
+        market_open = time_c(9, 30)  # 9:30 AM
+        market_close = time_c(14, 0)  # 2:00 PM (14:00)
+        # return market_open <= current_time <= market_close
+        return True
 
     def admin_trade_exit_signal(self, token: str) -> bool:
         """
@@ -204,6 +206,7 @@ class StrategyTrader:
                     print(e)
                     logging.error(f"Failed to fetch latest LTP: {e}")
                     traceback.print_exc()
+                    time.sleep(10)
                     continue
 
                 # Fetch the latest OHLC candle (using token '25' as example)
@@ -326,8 +329,9 @@ class StrategyTrader:
 if __name__ == "__main__":
     print('main function started')
     api_client = ApiDatabaseClient()
+    api_client.fetch_latest_ltp(stock_token='25')
     print('api client created')
-    trader = StrategyTrader(api_client)
-    print('trader created')
-    trader.run()
-    print('trader run')
+    # trader = StrategyTrader(api_client)
+    # print('trader created')
+    # trader.run()
+    # print('trader run')

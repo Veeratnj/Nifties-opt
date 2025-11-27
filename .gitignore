@@ -6,3 +6,10 @@ __pycache__/
 
 .idea/
 .vscode/
+*.csv
+*.pyc
+*.log
+*.env
+*.xlsx
+*.ipynb
+*.pyo

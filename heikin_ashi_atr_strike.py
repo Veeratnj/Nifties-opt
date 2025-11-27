@@ -74,7 +74,7 @@ class HeikinAshiATRStrategy:
         self.df = pd.read_csv(csv_file)
         self.df.rename(columns={"start_time": "timestamp"}, inplace=True)  # Standardize timestamp column
         self.df['timestamp'] = pd.to_datetime(self.df['timestamp'])  # Parse timestamps
-        self.df['timestamp'] = self.df['timestamp'].dt.tz_localize('Asia/Kolkata')  # Localize to IST
+        self.df['timestamp'] = self.df['timestamp'].dt.tz_convert('Asia/Kolkata')  # Convert to IST
 
         self.df.sort_values(by='timestamp', inplace=True)  # Sort by time
         self.df.reset_index(drop=True, inplace=True)  # Reset index
