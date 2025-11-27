@@ -1,0 +1,16 @@
+sqlalchemy
+python-dotenv
+pytz
+psycopg2-binary
+yfinance
+pandas
+pandas_ta
+numpy
+openpyxl
+smartapi-python
+logzero
+websocket-client
+websockets
+pyotp
+dhanhq==2.1.0
+requests

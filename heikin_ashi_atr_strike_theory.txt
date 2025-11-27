@@ -1,0 +1,39 @@
+Heikin Ashi ATR Strike Strategy - Theory
+
+1. Strategy Overview:
+- Uses Heikin Ashi candles and ATR (Average True Range) for entry/exit signals and risk management.
+- Incorporates RSI (Relative Strength Index) across multiple timeframes (base, higher, extra) for confirmation.
+- Designed for intraday trading, with session filtering and strike price rounding for options.
+
+2. Data Preparation:
+- Loads historical OHLCV data from CSV, standardizes timestamps, and localizes to IST.
+- Calculates Heikin Ashi candles for smoother trend detection.
+- Computes ATR on Heikin Ashi candles for dynamic stop loss.
+- Calculates RSI for base, higher, and extra timeframes using resampling.
+- Marks rows within the trading session (09:15 to 15:15 IST).
+
+3. Live Data Handling:
+- Adds new live data rows, updates all indicators for the latest tick.
+- Ensures time zone consistency and session marking for each new row.
+
+4. Signal Generation Logic:
+- Entry Conditions:
+  - Long: Bullish Heikin Ashi candle, RSI above threshold on base and higher timeframes, ETF RSI below upper bound, no open position.
+  - Short: Bearish Heikin Ashi candle, RSI below threshold on base and higher timeframes, ETF RSI above lower bound, no open position.
+- On entry, sets stop loss and take profit based on ATR and risk-reward ratio. Rounds strike price for options.
+
+- Exit Conditions:
+  - Long: Price hits trailing stop, take profit, or RSI drops below threshold.
+  - Short: Price hits trailing stop, take profit, or RSI rises above threshold.
+- Trailing stop loss is dynamically updated using ATR and highest/lowest price since entry.
+
+5. Structure Detection (BOS/CHOCH):
+- Detects Break of Structure (BOS) and Change of Character (CHOCH) using swing highs/lows over a lookback window.
+- Flags trend changes for advanced price action analysis.
+
+6. Output:
+- Signals are generated and stored for each tick.
+- All signals and processed data can be exported to CSV for further analysis.
+
+Summary:
+This strategy combines Heikin Ashi smoothing, ATR-based risk management, and multi-timeframe RSI confirmation to generate robust entry and exit signals for intraday trading. It includes advanced price action detection (BOS/CHOCH) and is suitable for options trading with strike rounding. All logic is implemented in a modular, extensible Python class for both historical and live data processing.
