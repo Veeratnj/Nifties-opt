@@ -8,11 +8,21 @@ from typing import Dict, Any, List
 
 # Configure logging for Main.py
 import logging
-logging.basicConfig(
-    filename='main.log',
-    level=logging.INFO,
-    format='%(asctime)s %(levelname)s %(message)s'
-)
+
+# Create a named logger for main
+logger = logging.getLogger('main')
+logger.setLevel(logging.INFO)
+
+# Create file handler for main.log
+file_handler = logging.FileHandler('main.log')
+file_handler.setLevel(logging.INFO)
+
+# Create formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+file_handler.setFormatter(formatter)
+
+# Add the handler to the logger
+logger.addHandler(file_handler)
 
 import pandas as pd
 import pytz
@@ -50,7 +60,7 @@ class ApiDatabaseClient:
             # Expecting: {"kill": true/false}
             return data.get("kill", False)
         except Exception as e:
-            logging.error(f"Failed to fetch kill trade signal for token {token}: {e}")
+            logger.error(f"Failed to fetch kill trade signal for token {token}: {e}")
             return False
         
         
@@ -64,40 +74,41 @@ class ApiDatabaseClient:
             # Expecting: {"tokens": ["23", "45", "12", ...]}
             return data.get("tokens", [])
         except Exception as e:
-            logging.error(f"Failed to fetch Nifty tokens: {e}")
+            logger.error(f"Failed to fetch Nifty tokens: {e}")
             return []
         
         
     def fetch_ohlc(self, token, limit=1):
-        """Fetch OHLC data for a token."""
-        url = f"{self.base_url}/ohlc"
-        payload = {"token": token, "limit": limit}
-        resp = self.session.post(url, json=payload)
+        """Fetch current OHLC data for a token."""
+        url = f"{self.base_url}/current/ohlc"
+        params = {"token": token}
+        resp = self.session.get(url, params=params)
         resp.raise_for_status()
         response_data = resp.json()
-        # Response: {"data": [...]}
-        data = response_data.get("data", [])
+        # Response: {"status": "success", "data": {...}} - data is a single object, not a list
+        if response_data.get("status") != "success":
+            return None
+        data = response_data.get("data")
         if not data:
             return None
-        row = data[-1]
-        # Values are returned as strings in API, need to convert
-        return row["start_time"], row["open"], row["high"], row["low"], row["close"]
+        # Values are returned as floats in API
+        return data["start_time"], data["open"], data["high"], data["low"], data["close"]
 
     def fetch_historical_ohlc(self, token, limit=500):
-        """Fetch historical OHLC data for a token."""
-        url = f"{self.base_url}/ohlc"
-        payload = {"token": token, "limit": limit}
-        resp = self.session.post(url, json=payload)
+        """Fetch historical OHLC data for a token (last 3 days of 3-min candles)."""
+        url = f"{self.base_url}/historical/ohlc/load"
+        params = {"token": token}
+        resp = self.session.get(url, params=params)
         resp.raise_for_status()
         response_data = resp.json()
-        # Response: {"data": [...]}
+        # Response: {"symbol": "...", "rows": N, "data": [...]}
         data = response_data.get("data", [])
         if not data:
-            return pd.DataFrame(columns=["start_time", "open", "high", "low", "close"])
+            return pd.DataFrame(columns=["timestamp", "open", "high", "low", "close", "volume"])
         df = pd.DataFrame(data)
-        df = df[["start_time", "open", "high", "low", "close"]].copy()
-        # Ensure values are floats
-        df = df.astype({"open": float, "high": float, "low": float, "close": float})
+        # Rename timestamp to start_time for compatibility
+        df.rename(columns={"timestamp": "start_time"}, inplace=True)
+        # Values are already floats from API
         return df
 
     def fetch_latest_ltp(self, stock_token: str = '99926009'):
@@ -144,14 +155,14 @@ class StrategyTrader:
         import traceback  # For detailed error tracebacks
         try:
             # Log the start of trading for this token
-            logging.info(f"Starting trade_function for token: {token}")
+            logger.info(f"Starting trade_function for token: {token}")
             stock_token = token  # The token to trade
 
             # Fetch historical OHLC data for the token
             historical_df = self.api.fetch_historical_ohlc(token=stock_token, limit=500)
             if historical_df is None or historical_df.empty:
                 # Abort if no historical data is available
-                logging.error("No historical data found, aborting trade_function.")
+                logger.error("No historical data found, aborting trade_function.")
                 return
 
             # Initialize the trading strategy with the token
@@ -176,23 +187,23 @@ class StrategyTrader:
                         if ltp_price <= stop_loss or ltp_price >= target or datetime.now().time() >= time_c(14, 25):
                             exit_flag = True
                             print('exit flag is true')
-                            logging.info(f"buy exit ltp_price={ltp_price} stop_loss={stop_loss} target={target} previous_entry_exit_key={previous_entry_exit_key} stock_token={stock_token} cond1{ltp_price <= stop_loss} cond2{ltp_price >= target}")
+                            logger.info(f"buy exit ltp_price={ltp_price} stop_loss={stop_loss} target={target} previous_entry_exit_key={previous_entry_exit_key} stock_token={stock_token} cond1{ltp_price <= stop_loss} cond2{ltp_price >= target}")
                         # Admin-triggered exit
                         elif self.admin_trade_exit_signal(token=stock_token):
                             exit_flag = True
                             print('admin exit signal received, exiting buy position')
-                            logging.info(f"Admin exit signal for BUY_EXIT stock_token={stock_token}")
+                            logger.info(f"Admin exit signal for BUY_EXIT stock_token={stock_token}")
                     elif previous_entry_exit_key == 'SELL_EXIT':
                         # Exit if LTP hits stop loss, target, or time is after 14:25
                         if ltp_price >= stop_loss or ltp_price <= target or datetime.now().time() >= time_c(14, 25):
                             exit_flag = True
                             print('exit flag is true')
-                            logging.info(f"sell exit ltp_price={ltp_price} stop_loss={stop_loss} target={target} previous_entry_exit_key={previous_entry_exit_key} stock_token={stock_token} cond1{ltp_price >= stop_loss} cond2{ltp_price <= target}")
+                            logger.info(f"sell exit ltp_price={ltp_price} stop_loss={stop_loss} target={target} previous_entry_exit_key={previous_entry_exit_key} stock_token={stock_token} cond1{ltp_price >= stop_loss} cond2{ltp_price <= target}")
                         # Admin-triggered exit
                         elif self.admin_trade_exit_signal(token=stock_token):
                             exit_flag = True
                             print('admin exit signal received, exiting sell position')
-                            logging.info(f"Admin exit signal for SELL_EXIT stock_token={stock_token}")
+                            logger.info(f"Admin exit signal for SELL_EXIT stock_token={stock_token}")
 
                 # Skip loop if market is closed
                 if not self.is_market_open():
@@ -204,7 +215,7 @@ class StrategyTrader:
                 except Exception as e:
                     # Log and skip on LTP fetch error
                     print(e)
-                    logging.error(f"Failed to fetch latest LTP: {e}")
+                    logger.error(f"Failed to fetch latest LTP: {e}")
                     traceback.print_exc()
                     time.sleep(10)
                     continue
@@ -216,6 +227,7 @@ class StrategyTrader:
                     previous_candle_time = start_time
                     continue
                 previous_candle_time = start_time
+                print('previous_candle_time is ==', open_,high,low,close)
                 print('start time is ==', start_time)
 
                 # Prepare live data for the strategy
@@ -239,7 +251,7 @@ class StrategyTrader:
                 # Always update stop_loss and target with latest values
                 stop_loss = stop_loss_
                 target = target_
-                logging.info(f"Signal generated: {signal}  strike price  {strike_price} ")
+                logger.info(f"Signal generated: {signal}  strike price  {strike_price} ")
 
                 # --- ENTRY conditions ---
                 if signal == 'BUY_ENTRY' and datetime.now().time() <= time_c(11, 30):
@@ -253,12 +265,12 @@ class StrategyTrader:
                     print('length is :: ', len(tokens_data_frame), "strike price is ::", strike_price)
                     if option_token_row.empty:
                         # No matching call option found
-                        logging.error(f"No CE option found for strike_price {strike_price}")
+                        logger.error(f"No CE option found for strike_price {strike_price}")
                         continue
                     print(f"BUY_ENTRY signal received token number is {option_token_row['token'].iloc[0]}")
                     open_order = True  # Mark order as open
                     trade_count -= 1  # Decrement trade count (if used)
-                    logging.info(f"strike price token number is {str(option_token_row['token'].iloc[0])}")
+                    logger.info(f"strike price token number is {str(option_token_row['token'].iloc[0])}")
                     # symbol = option_token_row['symbol'].iloc[0]  # Optionally use symbol
                     historical_df = self.api.fetch_historical_ohlc(token='25', limit=500)
                     strategy.load_historical_data(historical_df)
@@ -275,11 +287,11 @@ class StrategyTrader:
                     ]
                     if option_token_row.empty:
                         # No matching put option found
-                        logging.error(f"No PE option found for strike_price {strike_price}")
+                        logger.error(f"No PE option found for strike_price {strike_price}")
                         continue
                     print(f"SELL_ENTRY signal received token number is {option_token_row['token'].iloc[0]}")
                     open_order = True  # Mark order as open
-                    logging.info(f"strike price token number is {str(option_token_row['token'].iloc[0])}")
+                    logger.info(f"strike price token number is {str(option_token_row['token'].iloc[0])}")
                     symbol = option_token_row['symbol'].iloc[0]
                     historical_df = self.api.fetch_historical_ohlc(token='25', limit=500)
                     strategy.load_historical_data(historical_df)
@@ -288,13 +300,13 @@ class StrategyTrader:
                 if signal == 'BUY_EXIT' or (previous_entry_exit_key == 'BUY_EXIT' and exit_flag):
                     open_order = False  # Mark order as closed
                     print('BUY_EXIT: Closing buy position')
-                    logging.info(f"BUY_EXIT executed for stock_token={stock_token}")
+                    logger.info(f"BUY_EXIT executed for stock_token={stock_token}")
                     # Place your buy exit order logic here
                     continue
                 if signal == 'SELL_EXIT' or (previous_entry_exit_key == 'SELL_EXIT' and exit_flag):
                     open_order = False  # Mark order as closed
                     print('SELL_EXIT: Closing sell position')
-                    logging.info(f"SELL_EXIT executed for stock_token={stock_token}")
+                    logger.info(f"SELL_EXIT executed for stock_token={stock_token}")
                     # Place your sell exit order logic here
                     continue
 
@@ -303,7 +315,7 @@ class StrategyTrader:
         except Exception as e:
             # Log and print any unexpected errors
             print('error is :: ', e)
-            logging.error(f"Error processing trade: {str(e)}", exc_info=True)
+            logger.error(f"Error processing trade: {str(e)}", exc_info=True)
             traceback.print_exc()
 
     def run(self):
@@ -321,7 +333,7 @@ class StrategyTrader:
             for t in threads:
                 t.join()
         except Exception as e:
-            logging.error("Error in run method", exc_info=True)
+            logger.error("Error in run method", exc_info=True)
             traceback.print_exc()
 
 

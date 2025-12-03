@@ -6,11 +6,21 @@ import pandas_ta as ta  # For technical analysis indicators
 
 # Set up logging to a separate file for this script
 import logging
-logging.basicConfig(
-    filename='heikin_ashi_atr_strike.log',  # Log file name
-    level=logging.INFO,  # Log level
-    format='%(asctime)s %(levelname)s %(message)s'  # Log format
-)
+
+# Create a named logger for this module
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Create file handler for this logger
+file_handler = logging.FileHandler('heikin_ashi_atr_strike.log')
+file_handler.setLevel(logging.INFO)
+
+# Create formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+file_handler.setFormatter(formatter)
+
+# Add the handler to the logger
+logger.addHandler(file_handler)
 
 class HeikinAshiATRStrategy:
     def __init__(self,
@@ -237,6 +247,7 @@ class HeikinAshiATRStrategy:
                 self.take_profit = None
                 self.trailing_sl = None
                 self.highest_since_entry = None
+                logger.info(f"SIGNAL: BUY_EXIT | Time: {last['timestamp']} | Open: {last['open']} | High: {last['high']} | Low: {last['low']} | Close: {last['close']} | HA_Close: {last['ha_close']}")
                 return 'BUY_EXIT'
 
         elif self.last_position == 'short':
@@ -256,6 +267,7 @@ class HeikinAshiATRStrategy:
                 self.take_profit = None
                 self.trailing_sl = None
                 self.lowest_since_entry = None
+                logger.info(f"SIGNAL: SELL_EXIT | Time: {last['timestamp']} | Open: {last['open']} | High: {last['high']} | Low: {last['low']} | Close: {last['close']} | HA_Close: {last['ha_close']}")
                 return 'SELL_EXIT'
 
         # --- ENTRY conditions ---
@@ -283,6 +295,7 @@ class HeikinAshiATRStrategy:
             self.stop_loss = last['ha_close'] - self.atr_mult * last['atr']
             self.take_profit = last['ha_close'] + self.risk_reward * (last['ha_close'] - self.stop_loss)
             option_strike = ((last['ha_close'] - self.round_off_diff) // 100) * 100  # Round down to nearest 100
+            logger.info(f"SIGNAL: BUY_ENTRY | Time: {last['timestamp']} | Open: {last['open']} | High: {last['high']} | Low: {last['low']} | Close: {last['close']} | HA_Close: {last['ha_close']} | SL: {self.stop_loss} | TP: {self.take_profit} | Strike: {option_strike}")
             return 'BUY_ENTRY', self.stop_loss, self.take_profit, option_strike
 
         elif short_entry:
@@ -293,6 +306,7 @@ class HeikinAshiATRStrategy:
             self.stop_loss = last['ha_close'] + self.atr_mult * last['atr']
             self.take_profit = last['ha_close'] - self.risk_reward * (self.stop_loss - last['ha_close'])
             option_strike = math.ceil((last['ha_close'] + self.round_off_diff) / 100) * 100  # Round up to nearest 100
+            logger.info(f"SIGNAL: SELL_ENTRY | Time: {last['timestamp']} | Open: {last['open']} | High: {last['high']} | Low: {last['low']} | Close: {last['close']} | HA_Close: {last['ha_close']} | SL: {self.stop_loss} | TP: {self.take_profit} | Strike: {option_strike}")
             return 'SELL_ENTRY', self.stop_loss, self.take_profit, option_strike
 
         return None  # No signal
@@ -301,6 +315,7 @@ class HeikinAshiATRStrategy:
 if __name__ == "__main__":
     # Example usage: run strategy on historical and simulated live data
     strategy = HeikinAshiATRStrategy(token="NSE_FO|54086", stock_symbol="NIFTY25AUG2450000PE")  # Initialize strategy
+    # strategy.load_historical_data('old_3min.csv')  # Load historical data
     strategy.load_historical_data('old_3min.csv')  # Load historical data
 
     signals_data = []  # Store signals for later analysis
