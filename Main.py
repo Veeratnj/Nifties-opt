@@ -38,11 +38,11 @@ from heikin_ashi_atr_strike import HeikinAshiATRStrategy
 IST = pytz.timezone("Asia/Kolkata")
 
 
+load_dotenv()
 
 # --- API Database Client ---
 class ApiDatabaseClient:
     def __init__(self):
-        load_dotenv()
         # Base URL includes /db, so endpoints are relative to http://localhost:8000/db
         self.base_url = os.getenv("API_BASE_URL", "http://localhost:8000/db")
         # No authentication required - /db endpoints are public
@@ -119,12 +119,84 @@ class ApiDatabaseClient:
         data = resp.json()["data"]
         return data["last_update"], data["ltp"]
 
+    def send_entry_signal(self, token: str, signal: str, strike_price_token: str, strategy_code: str,unique_id:str) -> bool:
+        '''
+        Send trading entry signal to the API.
+        This is a POST API with no authentication required.
+        
+        Args:
+            token (str): The token identifier (e.g., "23")
+            signal (str): The signal type (e.g., "BUY_ENTRY", "SELL_ENTRY")
+            strike_price_token (str): The strike price token
+            strategy_code (str): Code of the strategy
+            unique_id (str): Unique ID for this signal
+            
+        Returns:
+            bool: True if signal sent successfully, False otherwise
+        '''
+        url = f"{self.base_url}/signals/entry"
+        
+        payload = {
+            "token": token,
+            "signal": signal,
+            "unique_id": unique_id,
+            "strike_price_token": strike_price_token,
+            "strategy_code": strategy_code
+        }
+        
+        try:
+            resp = self.session.post(url, json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+            logger.info(f"Entry signal sent successfully: {payload}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send entry signal for token {token}: {e}")
+            return False
+
+    def send_exit_signal(self, token: str, signal: str, strike_price_token: str, strategy_code: str, unique_id: str) -> bool:
+        '''
+        Send trading exit signal to the API.
+        This is a POST API with no authentication required.
+        
+        Args:
+            token (str): The token identifier (e.g., "23")
+            signal (str): The signal type (e.g., "BUY_EXIT", "SELL_EXIT")
+            strike_price_token (str): The strike price token
+            strategy_code (str): Code of the strategy
+            unique_id (str): Unique ID for this signal (should match the entry signal ID)
+            
+        Returns:
+            bool: True if signal sent successfully, False otherwise
+        '''
+        url = f"{self.base_url}/signals/exit"
+        
+        payload = {
+            "token": token,
+            "signal": signal,
+            "unique_id": unique_id,
+            "strike_price_token": strike_price_token,
+            "strategy_code": strategy_code
+        }
+        
+        try:
+            resp = self.session.post(url, json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+            logger.info(f"Exit signal sent successfully: {payload}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send exit signal for token {token}: {e}")
+            return False
+
+
 
 # --- Strategy Orchestration Class ---
 class StrategyTrader:
     def __init__(self, api_client):
         # Store the API client instance for data access
         self.api = api_client
+        self.strategy_code = os.getenv("STRATEGY_CODE", "UNKNOWN")
 
     def is_market_open(self) -> bool:
         """
@@ -176,6 +248,8 @@ class StrategyTrader:
             stop_loss: float | None = None  # Current stop loss
             target: float | None = None  # Current target
             previous_entry_exit_key: str | None = None  # Last entry/exit signal
+            unique_id: str | None = None  # Unique ID for this trade
+            strike_price_token: str | None = None  # Strike price token for exit signal
 
             while True:
                 exit_flag = False  # Whether an exit condition is met
@@ -268,6 +342,15 @@ class StrategyTrader:
                         logger.error(f"No CE option found for strike_price {strike_price}")
                         continue
                     print(f"BUY_ENTRY signal received token number is {option_token_row['token'].iloc[0]}")
+                    unique_id = str(uuid4())
+                    strike_price_token = str(option_token_row['token'].iloc[0])
+                    self.api.send_entry_signal(
+                        token=token, 
+                        signal="BUY_ENTRY", 
+                        strike_price_token=strike_price_token, 
+                        strategy_code=self.strategy_code, 
+                        unique_id=unique_id,
+                        )
                     open_order = True  # Mark order as open
                     trade_count -= 1  # Decrement trade count (if used)
                     logger.info(f"strike price token number is {str(option_token_row['token'].iloc[0])}")
@@ -289,6 +372,16 @@ class StrategyTrader:
                         # No matching put option found
                         logger.error(f"No PE option found for strike_price {strike_price}")
                         continue
+
+                    unique_id = str(uuid4())
+                    strike_price_token = str(option_token_row['token'].iloc[0])
+                    self.api.send_entry_signal(
+                        token=token, 
+                        signal="SELL_ENTRY", 
+                        strike_price_token=strike_price_token, 
+                        strategy_code=self.strategy_code, 
+                        unique_id=unique_id,
+                        )
                     print(f"SELL_ENTRY signal received token number is {option_token_row['token'].iloc[0]}")
                     open_order = True  # Mark order as open
                     logger.info(f"strike price token number is {str(option_token_row['token'].iloc[0])}")
@@ -302,12 +395,31 @@ class StrategyTrader:
                     print('BUY_EXIT: Closing buy position')
                     logger.info(f"BUY_EXIT executed for stock_token={stock_token}")
                     # Place your buy exit order logic here
+                    self.api.send_exit_signal(
+                        token=token, 
+                        signal="BUY_EXIT", 
+                        strike_price_token=strike_price_token, 
+                        strategy_code=self.strategy_code, 
+                        unique_id=unique_id,
+                        )
+                    unique_id = None
+                    strike_price_token = None
                     continue
+                
                 if signal == 'SELL_EXIT' or (previous_entry_exit_key == 'SELL_EXIT' and exit_flag):
                     open_order = False  # Mark order as closed
                     print('SELL_EXIT: Closing sell position')
                     logger.info(f"SELL_EXIT executed for stock_token={stock_token}")
                     # Place your sell exit order logic here
+                    self.api.send_exit_signal(
+                        token=token, 
+                        signal="SELL_EXIT", 
+                        strike_price_token=strike_price_token, 
+                        strategy_code=self.strategy_code, 
+                        unique_id=unique_id,
+                        )
+                    unique_id = None
+                    strike_price_token = None
                     continue
 
                 # Wait before next iteration (throttle loop)
