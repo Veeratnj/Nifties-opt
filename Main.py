@@ -352,11 +352,10 @@ class StrategyTrader:
                         unique_id=unique_id,
                         )
                     open_order = True  # Mark order as open
-                    trade_count -= 1  # Decrement trade count (if used)
                     logger.info(f"strike price token number is {str(option_token_row['token'].iloc[0])}")
                     # symbol = option_token_row['symbol'].iloc[0]  # Optionally use symbol
-                    historical_df = self.api.fetch_historical_ohlc(token='25', limit=500)
-                    strategy.load_historical_data(historical_df)
+                    # historical_df = self.api.fetch_historical_ohlc(token='25', limit=500)
+                    # strategy.load_historical_data(historical_df)
 
                 elif signal == 'SELL_ENTRY' and datetime.now().time() <= time_c(11, 30):
                     # Set up for a sell position
@@ -386,8 +385,8 @@ class StrategyTrader:
                     open_order = True  # Mark order as open
                     logger.info(f"strike price token number is {str(option_token_row['token'].iloc[0])}")
                     symbol = option_token_row['symbol'].iloc[0]
-                    historical_df = self.api.fetch_historical_ohlc(token='25', limit=500)
-                    strategy.load_historical_data(historical_df)
+                    # historical_df = self.api.fetch_historical_ohlc(token='25', limit=500)
+                    # strategy.load_historical_data(historical_df)
 
                 # --- EXIT conditions ---
                 if signal == 'BUY_EXIT' or (previous_entry_exit_key == 'BUY_EXIT' and exit_flag):
@@ -404,6 +403,8 @@ class StrategyTrader:
                         )
                     unique_id = None
                     strike_price_token = None
+                    previous_entry_exit_key=None
+                    signal=None
                     continue
                 
                 if signal == 'SELL_EXIT' or (previous_entry_exit_key == 'SELL_EXIT' and exit_flag):
@@ -411,6 +412,7 @@ class StrategyTrader:
                     print('SELL_EXIT: Closing sell position')
                     logger.info(f"SELL_EXIT executed for stock_token={stock_token}")
                     # Place your sell exit order logic here
+                    
                     self.api.send_exit_signal(
                         token=token, 
                         signal="SELL_EXIT", 
@@ -420,6 +422,8 @@ class StrategyTrader:
                         )
                     unique_id = None
                     strike_price_token = None
+                    previous_entry_exit_key=None
+                    signal=None
                     continue
 
                 # Wait before next iteration (throttle loop)
