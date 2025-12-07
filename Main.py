@@ -8,13 +8,14 @@ from typing import Dict, Any, List
 
 # Configure logging for Main.py
 import logging
+from logging.handlers import RotatingFileHandler
 
 # Create a named logger for main
 logger = logging.getLogger('main')
 logger.setLevel(logging.INFO)
 
-# Create file handler for main.log
-file_handler = logging.FileHandler('main.log')
+# Create rotating file handler for main.log (1MB max, keep 1 backup file)
+file_handler = RotatingFileHandler('main.log', maxBytes=1*1024*1024, backupCount=1)
 file_handler.setLevel(logging.INFO)
 
 # Create formatter and add it to the handler
@@ -254,6 +255,22 @@ class StrategyTrader:
             while True:
                 exit_flag = False  # Whether an exit condition is met
 
+                # Skip loop if market is closed
+                if not self.is_market_open():
+                    time.sleep(60)  # Sleep when market is closed to avoid CPU spinning
+                    continue
+
+                try:
+                    # Fetch the latest LTP (last traded price)
+                    ltp_price = self.api.fetch_latest_ltp(stock_token=stock_token)[1]
+                except Exception as e:
+                    # Log and skip on LTP fetch error
+                    print(e)
+                    logger.error(f"Failed to fetch latest LTP: {e}")
+                    traceback.print_exc()
+                    time.sleep(10)
+                    continue
+
                 # Check for exit conditions if a position is open
                 if previous_entry_exit_key is not None and stop_loss is not None and target is not None:
                     if previous_entry_exit_key == 'BUY_EXIT':
@@ -279,26 +296,22 @@ class StrategyTrader:
                             print('admin exit signal received, exiting sell position')
                             logger.info(f"Admin exit signal for SELL_EXIT stock_token={stock_token}")
 
-                # Skip loop if market is closed
-                if not self.is_market_open():
-                    continue
-
+                # Fetch the latest OHLC candle (use actual stock_token)
                 try:
-                    # Fetch the latest LTP (last traded price)
-                    ltp_price = self.api.fetch_latest_ltp(stock_token=stock_token)[1]
+                    ohlc_result = self.api.fetch_ohlc(token=stock_token, limit=1)
+                    if ohlc_result is None:
+                        logger.error(f"OHLC fetch returned None for token {stock_token}")
+                        time.sleep(5)
+                        continue
+                    start_time, open_, high, low, close = ohlc_result
                 except Exception as e:
-                    # Log and skip on LTP fetch error
-                    print(e)
-                    logger.error(f"Failed to fetch latest LTP: {e}")
+                    logger.error(f"Failed to fetch OHLC for token {stock_token}: {e}")
                     traceback.print_exc()
                     time.sleep(10)
                     continue
-
-                # Fetch the latest OHLC candle (using token '25' as example)
-                start_time, open_, high, low, close = self.api.fetch_ohlc(token='25', limit=1)
                 # Skip if this candle was already processed
                 if start_time == previous_candle_time:
-                    previous_candle_time = start_time
+                    time.sleep(2)  # Wait before checking again
                     continue
                 previous_candle_time = start_time
                 print('previous_candle_time is ==', open_,high,low,close)
@@ -322,15 +335,16 @@ class StrategyTrader:
                 else:
                     signal, stop_loss_, target_, strike_price = signal_result, None, None, None
 
-                # Always update stop_loss and target with latest values
-                stop_loss = stop_loss_
-                target = target_
+                # Update stop_loss and target only if new values are provided
+                if stop_loss_ is not None:
+                    stop_loss = stop_loss_
+                if target_ is not None:
+                    target = target_
                 logger.info(f"Signal generated: {signal}  strike price  {strike_price} ")
 
                 # --- ENTRY conditions ---
                 if signal == 'BUY_ENTRY' and datetime.now().time() <= time_c(11, 30):
                     # Set up for a buy position
-                    previous_entry_exit_key = 'BUY_EXIT'
                     tokens_data_frame = pd.read_excel('strike-price.xlsx')  # Load strike price data
                     option_token_row = tokens_data_frame[
                         (tokens_data_frame['strike_price'] == int(strike_price)) &
@@ -342,24 +356,26 @@ class StrategyTrader:
                         logger.error(f"No CE option found for strike_price {strike_price}")
                         continue
                     print(f"BUY_ENTRY signal received token number is {option_token_row['token'].iloc[0]}")
-                    unique_id = str(uuid4())
-                    strike_price_token = str(option_token_row['token'].iloc[0])
-                    self.api.send_entry_signal(
+                    temp_unique_id = str(uuid4())
+                    temp_strike_price_token = str(option_token_row['token'].iloc[0])
+                    # Only update state if API call succeeds
+                    if self.api.send_entry_signal(
                         token=token, 
                         signal="BUY_ENTRY", 
-                        strike_price_token=strike_price_token, 
+                        strike_price_token=temp_strike_price_token, 
                         strategy_code=self.strategy_code, 
-                        unique_id=unique_id,
-                        )
-                    open_order = True  # Mark order as open
-                    logger.info(f"strike price token number is {str(option_token_row['token'].iloc[0])}")
-                    # symbol = option_token_row['symbol'].iloc[0]  # Optionally use symbol
-                    # historical_df = self.api.fetch_historical_ohlc(token='25', limit=500)
-                    # strategy.load_historical_data(historical_df)
+                        unique_id=temp_unique_id,
+                        ):
+                        previous_entry_exit_key = 'BUY_EXIT'
+                        unique_id = temp_unique_id
+                        strike_price_token = temp_strike_price_token
+                        open_order = True  # Mark order as open
+                        logger.info(f"strike price token number is {temp_strike_price_token}")
+                    else:
+                        logger.error(f"Failed to send BUY_ENTRY signal, state not updated")
 
                 elif signal == 'SELL_ENTRY' and datetime.now().time() <= time_c(11, 30):
                     # Set up for a sell position
-                    previous_entry_exit_key = 'SELL_EXIT'
                     print('SELL_ENTRY signal received')
                     tokens_data_frame = pd.read_excel('strike-price.xlsx')  # Load strike price data
                     print('length is :: ', len(tokens_data_frame), "strike price is ::", strike_price)
@@ -372,58 +388,70 @@ class StrategyTrader:
                         logger.error(f"No PE option found for strike_price {strike_price}")
                         continue
 
-                    unique_id = str(uuid4())
-                    strike_price_token = str(option_token_row['token'].iloc[0])
-                    self.api.send_entry_signal(
+                    temp_unique_id = str(uuid4())
+                    temp_strike_price_token = str(option_token_row['token'].iloc[0])
+                    # Only update state if API call succeeds
+                    if self.api.send_entry_signal(
                         token=token, 
                         signal="SELL_ENTRY", 
-                        strike_price_token=strike_price_token, 
+                        strike_price_token=temp_strike_price_token, 
                         strategy_code=self.strategy_code, 
-                        unique_id=unique_id,
-                        )
-                    print(f"SELL_ENTRY signal received token number is {option_token_row['token'].iloc[0]}")
-                    open_order = True  # Mark order as open
-                    logger.info(f"strike price token number is {str(option_token_row['token'].iloc[0])}")
-                    symbol = option_token_row['symbol'].iloc[0]
-                    # historical_df = self.api.fetch_historical_ohlc(token='25', limit=500)
-                    # strategy.load_historical_data(historical_df)
+                        unique_id=temp_unique_id,
+                        ):
+                        previous_entry_exit_key = 'SELL_EXIT'
+                        unique_id = temp_unique_id
+                        strike_price_token = temp_strike_price_token
+                        open_order = True  # Mark order as open
+                        print(f"SELL_ENTRY signal received token number is {option_token_row['token'].iloc[0]}")
+                        logger.info(f"strike price token number is {temp_strike_price_token}")
+                    else:
+                        logger.error(f"Failed to send SELL_ENTRY signal, state not updated")
 
                 # --- EXIT conditions ---
                 if signal == 'BUY_EXIT' or (previous_entry_exit_key == 'BUY_EXIT' and exit_flag):
                     open_order = False  # Mark order as closed
                     print('BUY_EXIT: Closing buy position')
                     logger.info(f"BUY_EXIT executed for stock_token={stock_token}")
-                    # Place your buy exit order logic here
-                    self.api.send_exit_signal(
-                        token=token, 
-                        signal="BUY_EXIT", 
-                        strike_price_token=strike_price_token, 
-                        strategy_code=self.strategy_code, 
-                        unique_id=unique_id,
-                        )
+                    # Validate variables before sending exit signal
+                    if strike_price_token is not None and unique_id is not None:
+                        self.api.send_exit_signal(
+                            token=token, 
+                            signal="BUY_EXIT", 
+                            strike_price_token=strike_price_token, 
+                            strategy_code=self.strategy_code, 
+                            unique_id=unique_id,
+                            )
+                    else:
+                        logger.error(f"Cannot send BUY_EXIT: strike_price_token or unique_id is None")
+                    # Reset all position-related state
                     unique_id = None
                     strike_price_token = None
-                    previous_entry_exit_key=None
-                    signal=None
+                    previous_entry_exit_key = None
+                    stop_loss = None
+                    target = None
                     continue
                 
                 if signal == 'SELL_EXIT' or (previous_entry_exit_key == 'SELL_EXIT' and exit_flag):
                     open_order = False  # Mark order as closed
                     print('SELL_EXIT: Closing sell position')
                     logger.info(f"SELL_EXIT executed for stock_token={stock_token}")
-                    # Place your sell exit order logic here
-                    
-                    self.api.send_exit_signal(
-                        token=token, 
-                        signal="SELL_EXIT", 
-                        strike_price_token=strike_price_token, 
-                        strategy_code=self.strategy_code, 
-                        unique_id=unique_id,
-                        )
+                    # Validate variables before sending exit signal
+                    if strike_price_token is not None and unique_id is not None:
+                        self.api.send_exit_signal(
+                            token=token, 
+                            signal="SELL_EXIT", 
+                            strike_price_token=strike_price_token, 
+                            strategy_code=self.strategy_code, 
+                            unique_id=unique_id,
+                            )
+                    else:
+                        logger.error(f"Cannot send SELL_EXIT: strike_price_token or unique_id is None")
+                    # Reset all position-related state
                     unique_id = None
                     strike_price_token = None
-                    previous_entry_exit_key=None
-                    signal=None
+                    previous_entry_exit_key = None
+                    stop_loss = None
+                    target = None
                     continue
 
                 # Wait before next iteration (throttle loop)
