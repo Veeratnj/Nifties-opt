@@ -208,8 +208,8 @@ class StrategyTrader:
         current_time = datetime.now(IST).time()
         market_open = time_c(9, 30)  # 9:30 AM
         market_close = time_c(14, 0)  # 2:00 PM (14:00)
-        # return market_open <= current_time <= market_close
-        return True
+        return market_open <= current_time <= market_close
+        # return True
 
     def admin_trade_exit_signal(self, token: str) -> bool:
         """
