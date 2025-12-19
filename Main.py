@@ -136,7 +136,8 @@ class ApiDatabaseClient:
             bool: True if signal sent successfully, False otherwise
         '''
         # url = f"{self.base_url}/signals/entry"
-        url = f"{self.base_url}/signals/v2/entry"
+        # url = f"{self.base_url}/signals/v2/entry"
+        url = f"{self.base_url}/signals/entry/v3"
         
         payload = {
             "token": token,
@@ -172,7 +173,8 @@ class ApiDatabaseClient:
             bool: True if signal sent successfully, False otherwise
         '''
         # url = f"{self.base_url}/signals/exit"
-        url = f"{self.base_url}/signals/v2/exit"
+        # url = f"{self.base_url}/signals/v2/exit"
+        url = f"{self.base_url}/signals/exit/v3"
         
         payload = {
             "token": token,
