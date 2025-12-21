@@ -315,3 +315,20 @@ should_exit = api_client.kill_trade_signal(token="99926009")
 # Fetch stock trend
 trend = api_client.fetch_stock_trend(stock_token="99926009")
 ```
+
+
+sample_payload = {
+  "token": "string",
+  "signal": "string",
+  "unique_id": "string",
+  "strategy_code": "string",
+  "strike_data": {
+      "token": 35000, # Automatically converted to "35000"
+      "exchange": "OPTIDX",
+      "index_name": "BANKNIFTY",
+      "DOE": "2025-12-30 00:00:00",
+      "strike_price": 69700.0,
+      "position": "CE",
+      "symbol": "BANKNIFTY-Dec2025-69700-CE"
+  }
+}

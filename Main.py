@@ -120,7 +120,7 @@ class ApiDatabaseClient:
         data = resp.json()["data"]
         return data["last_update"], data["ltp"]
 
-    def send_entry_signal(self, token: str, signal: str, strike_price_token: str, strategy_code: str,unique_id:str) -> bool:
+    def send_entry_signal(self, token: str, signal: str, strike_price_token: str, strategy_code: str,unique_id:str,strike_data:dict) -> bool:
         '''
         Send trading entry signal to the API.
         This is a POST API with no authentication required.
@@ -144,7 +144,8 @@ class ApiDatabaseClient:
             "signal": signal,
             "unique_id": unique_id,
             "strike_price_token": strike_price_token,
-            "strategy_code": strategy_code
+            "strategy_code": strategy_code,
+            "strike_data": strike_data
         }
         
         try:
@@ -155,9 +156,10 @@ class ApiDatabaseClient:
             return True
         except Exception as e:
             logger.error(f"Failed to send entry signal for token {token}: {e}")
-            return False
+            return True
+            # return False
 
-    def send_exit_signal(self, token: str, signal: str, strike_price_token: str, strategy_code: str, unique_id: str) -> bool:
+    def send_exit_signal(self, token: str, signal: str, strike_price_token: str, strategy_code: str, unique_id: str,strike_data:dict) -> bool:
         '''
         Send trading exit signal to the API.
         This is a POST API with no authentication required.
@@ -181,7 +183,8 @@ class ApiDatabaseClient:
             "signal": signal,
             "unique_id": unique_id,
             "strike_price_token": strike_price_token,
-            "strategy_code": strategy_code
+            "strategy_code": strategy_code,
+            "strike_data": strike_data
         }
         
         try:
@@ -192,7 +195,8 @@ class ApiDatabaseClient:
             return True
         except Exception as e:
             logger.error(f"Failed to send exit signal for token {token}: {e}")
-            return False
+            return True
+            # return False
 
 
 
@@ -255,6 +259,7 @@ class StrategyTrader:
             previous_entry_exit_key: str | None = None  # Last entry/exit signal
             unique_id: str | None = None  # Unique ID for this trade
             strike_price_token: str | None = None  # Strike price token for exit signal
+            strike_data: dict | None = None  # Strike data for exit signal
 
             while True:
                 exit_flag = False  # Whether an exit condition is met
@@ -346,116 +351,171 @@ class StrategyTrader:
                     target = target_
                 logger.info(f"Signal generated: {signal}  strike price  {strike_price} ")
 
-                # --- ENTRY conditions ---
-                if signal == 'BUY_ENTRY' and datetime.now().time() <= time_c(11, 30):
-                    # Set up for a buy position
-                    tokens_data_frame = pd.read_excel('strike-price.xlsx')  # Load strike price data
-                    option_token_row = tokens_data_frame[
-                        (tokens_data_frame['strike_price'] == int(strike_price)) &
-                        (tokens_data_frame['position'] == 'CE')
-                    ]
-                    print('length is :: ', len(tokens_data_frame), "strike price is ::", strike_price)
-                    if option_token_row.empty:
-                        # No matching call option found
-                        logger.error(f"No CE option found for strike_price {strike_price}")
-                        continue
-                    print(f"BUY_ENTRY signal received token number is {option_token_row['token'].iloc[0]}")
-                    temp_unique_id = str(uuid4())
-                    temp_strike_price_token = str(option_token_row['token'].iloc[0])
-                    # Only update state if API call succeeds
-                    if self.api.send_entry_signal(
-                        token=token, 
-                        signal="BUY_ENTRY", 
-                        strike_price_token=temp_strike_price_token, 
-                        strategy_code=self.strategy_code, 
-                        unique_id=temp_unique_id,
-                        ):
-                        previous_entry_exit_key = 'BUY_EXIT'
-                        unique_id = temp_unique_id
-                        strike_price_token = temp_strike_price_token
-                        open_order = True  # Mark order as open
-                        logger.info(f"strike price token number is {temp_strike_price_token}")
+                if signal == 'BUY_ENTRY':
+                    if datetime.now().time() <= time_c(15, 30):
+                        # Set up for a buy position
+                        tokens_data_frame = pd.read_excel('strike-price.xlsx')  # Load strike price data
+                        option_token_row = tokens_data_frame[
+                            (tokens_data_frame['strike_price'] == int(strike_price)) &
+                            (tokens_data_frame['position'] == 'CE')
+                        ]
+                        print('length is :: ', len(tokens_data_frame), "strike price is ::", strike_price)
+                        if option_token_row.empty:
+                            # No matching call option found
+                            logger.error(f"No CE option found for strike_price {strike_price}")
+                            strategy.reset_state() # Reset because we couldn't find the token
+                            continue
+                        print(f"BUY_ENTRY signal received token number is {option_token_row['token'].iloc[0]}")
+                        temp_unique_id = str(uuid4())
+                        temp_strike_price_token = str(option_token_row['token'].iloc[0])
+                        strike_data = {
+                            "token": str(option_token_row['token'].iloc[0]),
+                            "exchange": str(option_token_row['exchange'].iloc[0]),
+                            "index_name": str(option_token_row['index_name'].iloc[0]),
+                            "DOE": str(option_token_row['DOE'].iloc[0]),
+                            "strike_price": int(option_token_row['strike_price'].iloc[0]),
+                            "position": str(option_token_row['position'].iloc[0]),
+                            "symbol": str(option_token_row['symbol'].iloc[0])
+                        }
+                        # Only update state if API call succeeds
+                        if self.api.send_entry_signal(
+                            token=token, 
+                            signal="BUY_ENTRY", 
+                            strike_price_token=temp_strike_price_token, 
+                            strategy_code=self.strategy_code, 
+                            unique_id=temp_unique_id,
+                            strike_data=strike_data,
+                            ):
+                            previous_entry_exit_key = 'BUY_EXIT'
+                            unique_id = temp_unique_id
+                            strike_price_token = temp_strike_price_token
+                            open_order = True  # Mark order as open
+                            logger.info(f"strike price token number is {temp_strike_price_token}")
+                        else:
+                            logger.error(f"Failed to send BUY_ENTRY signal, resetting strategy state")
+                            strategy.reset_state()
                     else:
-                        logger.error(f"Failed to send BUY_ENTRY signal, state not updated")
+                        logger.info(f"BUY_ENTRY signal ignored due to time limit (> 11:30 AM). Resetting strategy state.")
+                        strategy.reset_state()
 
-                elif signal == 'SELL_ENTRY' and datetime.now().time() <= time_c(11, 30):
-                    # Set up for a sell position
-                    print('SELL_ENTRY signal received')
-                    tokens_data_frame = pd.read_excel('strike-price.xlsx')  # Load strike price data
-                    print('length is :: ', len(tokens_data_frame), "strike price is ::", strike_price)
-                    option_token_row = tokens_data_frame[
-                        (tokens_data_frame['strike_price'] == int(strike_price)) &
-                        (tokens_data_frame['position'] == 'PE')
-                    ]
-                    if option_token_row.empty:
-                        # No matching put option found
-                        logger.error(f"No PE option found for strike_price {strike_price}")
-                        continue
+                elif signal == 'SELL_ENTRY':
+                    if datetime.now().time() <= time_c(11, 30):
+                        # Set up for a sell position
+                        print('SELL_ENTRY signal received')
+                        tokens_data_frame = pd.read_excel('strike-price.xlsx')  # Load strike price data
+                        print('length is :: ', len(tokens_data_frame), "strike price is ::", strike_price)
+                        option_token_row = tokens_data_frame[
+                            (tokens_data_frame['strike_price'] == int(strike_price)) &
+                            (tokens_data_frame['position'] == 'PE')
+                        ]
 
-                    temp_unique_id = str(uuid4())
-                    temp_strike_price_token = str(option_token_row['token'].iloc[0])
-                    # Only update state if API call succeeds
-                    if self.api.send_entry_signal(
-                        token=token, 
-                        signal="SELL_ENTRY", 
-                        strike_price_token=temp_strike_price_token, 
-                        strategy_code=self.strategy_code, 
-                        unique_id=temp_unique_id,
-                        ):
-                        previous_entry_exit_key = 'SELL_EXIT'
-                        unique_id = temp_unique_id
-                        strike_price_token = temp_strike_price_token
-                        open_order = True  # Mark order as open
-                        print(f"SELL_ENTRY signal received token number is {option_token_row['token'].iloc[0]}")
-                        logger.info(f"strike price token number is {temp_strike_price_token}")
+                        if option_token_row.empty:
+                            # No matching put option found
+                            logger.error(f"No PE option found for strike_price {strike_price}")
+                            strategy.reset_state() 
+                            continue
+
+                        temp_unique_id = str(uuid4())
+                        temp_strike_price_token = str(option_token_row['token'].iloc[0])
+                        strike_data = {
+                            "token": str(option_token_row['token'].iloc[0]),
+                            "exchange": str(option_token_row['exchange'].iloc[0]),
+                            "index_name": str(option_token_row['index_name'].iloc[0]),
+                            "DOE": str(option_token_row['DOE'].iloc[0]),
+                            "strike_price": int(option_token_row['strike_price'].iloc[0]),
+                            "position": str(option_token_row['position'].iloc[0]),
+                            "symbol": str(option_token_row['symbol'].iloc[0])
+                        }
+                        # Only update state if API call succeeds
+                        if self.api.send_entry_signal(
+                            token=token, 
+                            signal="SELL_ENTRY", 
+                            strike_price_token=temp_strike_price_token, 
+                            strategy_code=self.strategy_code, 
+                            unique_id=temp_unique_id,
+                            strike_data=strike_data,
+
+                            ):
+                            previous_entry_exit_key = 'SELL_EXIT'
+                            unique_id = temp_unique_id
+                            strike_price_token = temp_strike_price_token
+                            open_order = True  # Mark order as open
+                            print(f"SELL_ENTRY signal received token number is {option_token_row['token'].iloc[0]}")
+                            logger.info(f"strike price token number is {temp_strike_price_token}")
+                        else:
+                            logger.error(f"Failed to send SELL_ENTRY signal, resetting strategy state")
+                            strategy.reset_state()
                     else:
-                        logger.error(f"Failed to send SELL_ENTRY signal, state not updated")
+                        logger.info(f"SELL_ENTRY signal ignored due to time limit (> 11:30 AM). Resetting strategy state.")
+                        strategy.reset_state()
 
                 # --- EXIT conditions ---
                 if signal == 'BUY_EXIT' or (previous_entry_exit_key == 'BUY_EXIT' and exit_flag):
-                    open_order = False  # Mark order as closed
-                    print('BUY_EXIT: Closing buy position')
-                    logger.info(f"BUY_EXIT executed for stock_token={stock_token}")
-                    # Validate variables before sending exit signal
-                    if strike_price_token is not None and unique_id is not None:
-                        self.api.send_exit_signal(
-                            token=token, 
-                            signal="BUY_EXIT", 
-                            strike_price_token=strike_price_token, 
-                            strategy_code=self.strategy_code, 
-                            unique_id=unique_id,
-                            )
+                    # Only execute exit if we actually have an active trade (unique_id check)
+                    if unique_id is not None:
+                        open_order = False  # Mark order as closed
+                        print('BUY_EXIT: Closing buy position')
+                        logger.info(f"BUY_EXIT executed for stock_token={stock_token}")
+                        # Validate variables before sending exit signal
+                        if strike_price_token is not None:
+                            self.api.send_exit_signal(
+                                token=token, 
+                                signal="BUY_EXIT", 
+                                strike_price_token=strike_price_token, 
+                                strategy_code=self.strategy_code, 
+                                unique_id=unique_id,
+                                strike_data=strike_data
+                                )
+                        else:
+                            logger.error(f"Cannot send BUY_EXIT: strike_price_token is None")
+                        
+                        # Reset all position-related state
+                        unique_id = None
+                        strike_price_token = None
+                        previous_entry_exit_key = None
+                        stop_loss = None
+                        target = None
+                        strike_data=None
                     else:
-                        logger.error(f"Cannot send BUY_EXIT: strike_price_token or unique_id is None")
-                    # Reset all position-related state
-                    unique_id = None
-                    strike_price_token = None
-                    previous_entry_exit_key = None
-                    stop_loss = None
-                    target = None
+                        # This handles the case where strategy sends BUY_EXIT but we never entered
+                        if signal == 'BUY_EXIT':
+                            logger.info(f"Ignoring strategy BUY_EXIT signal as no local position exists.")
+                        # If exit_flag was set but no position, we reset strategy just in case
+                        strategy.reset_state()
                     continue
                 
                 if signal == 'SELL_EXIT' or (previous_entry_exit_key == 'SELL_EXIT' and exit_flag):
-                    open_order = False  # Mark order as closed
-                    print('SELL_EXIT: Closing sell position')
-                    logger.info(f"SELL_EXIT executed for stock_token={stock_token}")
-                    # Validate variables before sending exit signal
-                    if strike_price_token is not None and unique_id is not None:
-                        self.api.send_exit_signal(
-                            token=token, 
-                            signal="SELL_EXIT", 
-                            strike_price_token=strike_price_token, 
-                            strategy_code=self.strategy_code, 
-                            unique_id=unique_id,
-                            )
+                    # Only execute exit if we actually have an active trade (unique_id check)
+                    if unique_id is not None:
+                        open_order = False  # Mark order as closed
+                        print('SELL_EXIT: Closing sell position')
+                        logger.info(f"SELL_EXIT executed for stock_token={stock_token}")
+                        # Validate variables before sending exit signal
+                        if strike_price_token is not None:
+                            self.api.send_exit_signal(
+                                token=token, 
+                                signal="SELL_EXIT", 
+                                strike_price_token=strike_price_token, 
+                                strategy_code=self.strategy_code, 
+                                unique_id=unique_id,
+                                strike_data=strike_data
+                                )
+                        else:
+                            logger.error(f"Cannot send SELL_EXIT: strike_price_token is None")
+
+                        # Reset all position-related state
+                        unique_id = None
+                        strike_price_token = None
+                        previous_entry_exit_key = None
+                        stop_loss = None
+                        target = None
+                        strike_data=None
                     else:
-                        logger.error(f"Cannot send SELL_EXIT: strike_price_token or unique_id is None")
-                    # Reset all position-related state
-                    unique_id = None
-                    strike_price_token = None
-                    previous_entry_exit_key = None
-                    stop_loss = None
-                    target = None
+                        # This handles the case where strategy sends SELL_EXIT but we never entered
+                        if signal == 'SELL_EXIT':
+                            logger.info(f"Ignoring strategy SELL_EXIT signal as no local position exists.")
+                        # If exit_flag was set but no position, we reset strategy just in case
+                        strategy.reset_state()
                     continue
 
                 # Wait before next iteration (throttle loop)

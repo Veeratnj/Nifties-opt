@@ -52,6 +52,17 @@ class HeikinAshiATRStrategy:
         self.highest_since_entry = None  # Highest price since entry (for long)
         self.lowest_since_entry = None  # Lowest price since entry (for short)
 
+    def reset_state(self):
+        """Reset all position-related state variables to effectively 'cancel' a trade."""
+        self.last_position = None
+        self.entry_price = None
+        self.stop_loss = None
+        self.take_profit = None
+        self.trailing_sl = None
+        self.highest_since_entry = None
+        self.lowest_since_entry = None
+        logger.info(f"Strategy state reset manually.")
+
     def update_trailing_stop_loss(self):
         # Update the trailing stop loss based on the latest Heikin-Ashi values
         if self.last_position is None:
