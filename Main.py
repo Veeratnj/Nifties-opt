@@ -5,6 +5,8 @@ import time
 from datetime import datetime, timedelta, time as time_c, date
 from uuid import uuid4
 from typing import Dict, Any, List
+from strike_price_websocket import start_strike_ltp_stream
+import threading
 
 # Configure logging for Main.py
 import logging
@@ -352,6 +354,7 @@ class StrategyTrader:
                 logger.info(f"Signal generated: {signal}  strike price  {strike_price} ")
 
                 if signal == 'BUY_ENTRY':
+                    
                     if datetime.now().time() <= time_c(15, 30):
                         # Set up for a buy position
                         tokens_data_frame = pd.read_excel('strike-price.xlsx')  # Load strike price data
@@ -368,6 +371,7 @@ class StrategyTrader:
                         print(f"BUY_ENTRY signal received token number is {option_token_row['token'].iloc[0]}")
                         temp_unique_id = str(uuid4())
                         temp_strike_price_token = str(option_token_row['token'].iloc[0])
+                        threading.Thread(target=start_strike_ltp_stream, args=(option_token_row['token'].iloc[0],)).start()
                         strike_data = {
                             "token": str(option_token_row['token'].iloc[0]),
                             "exchange": str(option_token_row['exchange'].iloc[0]),
@@ -417,6 +421,8 @@ class StrategyTrader:
 
                         temp_unique_id = str(uuid4())
                         temp_strike_price_token = str(option_token_row['token'].iloc[0])
+                        threading.Thread(target=start_strike_ltp_stream, args=(option_token_row['token'].iloc[0],)).start()
+
                         strike_data = {
                             "token": str(option_token_row['token'].iloc[0]),
                             "exchange": str(option_token_row['exchange'].iloc[0]),
