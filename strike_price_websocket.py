@@ -29,11 +29,12 @@ def start_strike_ltp_stream(token: str):
     dhan_context = DhanContext(CLIENT_ID, ACCESS_TOKEN)
 
     # ================== API CALL ==================
-    def insert_strike_ltp_api(token: str, price: float):
+    def insert_strike_ltp_api(token: str, price: float,symbol:str):
         url = f"{BASE_URL}{STRIKE_LTP_ENDPOINT}"
         payload = {
             "token": token,
-            "price": price
+            "ltp": price,
+            "symbol": symbol
         }
         response = requests.post(url, json=payload, timeout=3)
         response.raise_for_status()
@@ -57,10 +58,10 @@ def start_strike_ltp_stream(token: str):
                 market_start = now_ist.replace(hour=9, minute=15, second=0, microsecond=0)
                 market_end = now_ist.replace(hour=15, minute=30, second=0, microsecond=0)
 
-                # if not (market_start <= now_ist <= market_end):
-                #     print("⏸ Market closed. Waiting...")
-                #     time.sleep(60)
-                #     continue
+                if not (market_start <= now_ist <= market_end):
+                    print("⏸ Market closed. Waiting...")
+                    time.sleep(60)
+                    continue
 
                 data.run_forever()
                 response = data.get_data()
@@ -89,4 +90,4 @@ def start_strike_ltp_stream(token: str):
 
 
 if __name__ == "__main__":
-    start_strike_ltp_stream(token="52009")
+    start_strike_ltp_stream(token="74400",symbol='BANKNIFTY-Jan2026-74400-CE')

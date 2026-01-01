@@ -371,7 +371,7 @@ class StrategyTrader:
                         print(f"BUY_ENTRY signal received token number is {option_token_row['token'].iloc[0]}")
                         temp_unique_id = str(uuid4())
                         temp_strike_price_token = str(option_token_row['token'].iloc[0])
-                        threading.Thread(target=start_strike_ltp_stream, args=(option_token_row['token'].iloc[0],)).start()
+                        threading.Thread(target=start_strike_ltp_stream, args=(option_token_row['token'].iloc[0],option_token_row['symbol'].iloc[0])).start()
                         strike_data = {
                             "token": str(option_token_row['token'].iloc[0]),
                             "exchange": str(option_token_row['exchange'].iloc[0]),
@@ -421,7 +421,7 @@ class StrategyTrader:
 
                         temp_unique_id = str(uuid4())
                         temp_strike_price_token = str(option_token_row['token'].iloc[0])
-                        threading.Thread(target=start_strike_ltp_stream, args=(option_token_row['token'].iloc[0],)).start()
+                        threading.Thread(target=start_strike_ltp_stream, args=(option_token_row['token'].iloc[0],option_token_row['symbol'].iloc[0])).start()
 
                         strike_data = {
                             "token": str(option_token_row['token'].iloc[0]),
