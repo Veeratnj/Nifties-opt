@@ -1,4 +1,4 @@
-def start_strike_ltp_stream(token: str):
+def start_strike_ltp_stream(token: str,symbol:str):
     import os
     import time
     import requests
@@ -12,7 +12,7 @@ def start_strike_ltp_stream(token: str):
 
     BASE_URL = os.getenv("API_BASE_URL")
     CLIENT_ID = '1100465668'
-    ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzY3MzI1MjY1LCJpYXQiOjE3NjcyMzg4NjUsInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTAwNDY1NjY4In0.ut8FQnXZQh-tJkdBKHfx6T6yTyIwo6oAcN3AWSdgshxj0tprWS2ovzBryK9Vbv7FI4v3dPmDUciRXryy3PbAdA"
+    ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzY3NjY1MTU5LCJpYXQiOjE3Njc1Nzg3NTksInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTAwNDY1NjY4In0.mqIdNumndRSjgedlS_hojTzqeA-tgRN7ldKlbQhUF-eeEnZgmnbceimjT9LkcWC1LdY_-3doU-iJgrFGBtrPKQ"
 
     # if not BASE_URL or not CLIENT_ID or not ACCESS_TOKEN:
     #     raise RuntimeError("❌ Missing BASE_URL / CLIENT_ID / ACCESS_TOKEN in .env")
@@ -34,7 +34,8 @@ def start_strike_ltp_stream(token: str):
         payload = {
             "token": token,
             "ltp": price,
-            "symbol": symbol
+            "symbol": symbol,
+            # "timestamp": datetime.now(ist).isoformat()
         }
         response = requests.post(url, json=payload, timeout=3)
         response.raise_for_status()
@@ -58,10 +59,10 @@ def start_strike_ltp_stream(token: str):
                 market_start = now_ist.replace(hour=9, minute=15, second=0, microsecond=0)
                 market_end = now_ist.replace(hour=15, minute=30, second=0, microsecond=0)
 
-                if not (market_start <= now_ist <= market_end):
-                    print("⏸ Market closed. Waiting...")
-                    time.sleep(60)
-                    continue
+                # if not (market_start <= now_ist <= market_end):
+                #     print("⏸ Market closed. Waiting...")
+                #     time.sleep(60)
+                #     continue
 
                 data.run_forever()
                 response = data.get_data()
@@ -72,7 +73,7 @@ def start_strike_ltp_stream(token: str):
                 ltp = response['LTP']
 
                 try:
-                    insert_strike_ltp_api(token=token, price=ltp)
+                    insert_strike_ltp_api(token=token, price=ltp,symbol=symbol)
                     print(f"📍 LTP Sent | Token: {token} | Price: {ltp}")
 
                 except Exception as e:
@@ -90,4 +91,4 @@ def start_strike_ltp_stream(token: str):
 
 
 if __name__ == "__main__":
-    start_strike_ltp_stream(token="74400",symbol='BANKNIFTY-Jan2026-74400-CE')
+    start_strike_ltp_stream(token="35011",symbol='BANKNIFTY-Jan2026-74400-CE')
