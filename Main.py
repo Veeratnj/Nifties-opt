@@ -371,7 +371,10 @@ class StrategyTrader:
                         print(f"BUY_ENTRY signal received token number is {option_token_row['token'].iloc[0]}")
                         temp_unique_id = str(uuid4())
                         temp_strike_price_token = str(option_token_row['token'].iloc[0])
-                        threading.Thread(target=start_strike_ltp_stream, args=(str(option_token_row['token'].iloc[0]),str(option_token_row['symbol'].iloc[0]))).start()
+                        # strike_ltp_stop_event = threading.Event()
+                        # websocket_thread = threading.Thread(target=start_strike_ltp_stream, args=(str(option_token_row['token'].iloc[0]),str(option_token_row['symbol'].iloc[0]),strike_ltp_stop_event),daemon=False)
+                        # websocket_thread.start()
+                        print(f"Started thread for token={token}")
                         strike_data = {
                             "token": str(option_token_row['token'].iloc[0]),
                             "exchange": str(option_token_row['exchange'].iloc[0]),
@@ -421,8 +424,10 @@ class StrategyTrader:
 
                         temp_unique_id = str(uuid4())
                         temp_strike_price_token = str(option_token_row['token'].iloc[0])
-                        threading.Thread(target=start_strike_ltp_stream, args=(str(option_token_row['token'].iloc[0]),str(option_token_row['symbol'].iloc[0]))).start()
-
+                        # strike_ltp_stop_event = threading.Event()
+                        # websocket_thread = threading.Thread(target=start_strike_ltp_stream, args=(str(option_token_row['token'].iloc[0]),str(option_token_row['symbol'].iloc[0]),strike_ltp_stop_event),daemon=False)
+                        # websocket_thread.start()
+                        print(f"Started thread for token={str(option_token_row['token'].iloc[0])}")
                         strike_data = {
                             "token": str(option_token_row['token'].iloc[0]),
                             "exchange": str(option_token_row['exchange'].iloc[0]),
@@ -544,8 +549,8 @@ class StrategyTrader:
                 t.start()
                 print(f"Started thread for token={token}")
                 threads.append(t)
-            for t in threads:
-                t.join()
+            # for t in threads:
+            #     # t.join()
         except Exception as e:
             logger.error("Error in run method", exc_info=True)
             traceback.print_exc()
