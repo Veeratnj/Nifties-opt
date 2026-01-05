@@ -1,4 +1,10 @@
-def start_strike_ltp_stream(token: str,symbol:str):
+def start_strike_ltp_stream(token: str, symbol: str):
+    # ================== THREAD EVENT LOOP (MANDATORY) ==================
+    import asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    # ================== IMPORTS ==================
     import os
     import time
     import requests
@@ -9,17 +15,13 @@ def start_strike_ltp_stream(token: str,symbol:str):
 
     # ================== LOAD ENV ==================
     load_dotenv()
-
     BASE_URL = os.getenv("API_BASE_URL")
-    CLIENT_ID = '1100465668'
+
+    CLIENT_ID = "1100465668"
     ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzY3NjY1MTU5LCJpYXQiOjE3Njc1Nzg3NTksInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTAwNDY1NjY4In0.mqIdNumndRSjgedlS_hojTzqeA-tgRN7ldKlbQhUF-eeEnZgmnbceimjT9LkcWC1LdY_-3doU-iJgrFGBtrPKQ"
-
-    # if not BASE_URL or not CLIENT_ID or not ACCESS_TOKEN:
-    #     raise RuntimeError("❌ Missing BASE_URL / CLIENT_ID / ACCESS_TOKEN in .env")
-
-    # ================== CONFIG ==================
-    ist = pytz.timezone("Asia/Kolkata")
     VERSION = "v2"
+
+    ist = pytz.timezone("Asia/Kolkata")
     STRIKE_LTP_ENDPOINT = "/signals/strike-ltp"
 
     instruments = [
@@ -29,58 +31,61 @@ def start_strike_ltp_stream(token: str,symbol:str):
     dhan_context = DhanContext(CLIENT_ID, ACCESS_TOKEN)
 
     # ================== API CALL ==================
-    def insert_strike_ltp_api(token: str, price: float,symbol:str):
-        url = f"{BASE_URL}{STRIKE_LTP_ENDPOINT}"
-        payload = {
-            "token": token,
-            "ltp": price,
-            "symbol": symbol,
-            # "timestamp": datetime.now(ist).isoformat()
-        }
-        response = requests.post(url, json=payload, timeout=3)
-        response.raise_for_status()
+    def insert_strike_ltp_api(token: str, price: float, symbol: str):
+        try:
+            url = f"{BASE_URL}{STRIKE_LTP_ENDPOINT}"
+            # price(url)
+            payload = {
+                "token": str(token),
+                "ltp": float(price),   # ✅ convert numpy → python
+                "symbol": str(symbol),
+            }
+            print(payload)
+            r = requests.post(url, json=payload, timeout=3)
+            r.raise_for_status()
+            print(f"📍 API CALLED | {symbol} → {price}")
+        except Exception as e:
+            print(f"❌ API Insert Error: {e}")
 
-    # ================== RETRY CONFIG ==================
+    print(f"📡 Starting Strike LTP Stream | {symbol}")
+
     retry_delay = 5
     max_retry_delay = 60
-
-    print(f"📡 Starting Strike LTP Stream for token: {token}")
 
     # ================== MAIN LOOP ==================
     while True:
         try:
             data = MarketFeed(dhan_context, instruments, VERSION)
-            retry_delay = 20
-
+            print("🚀 MarketFeed connected")
+            data.run_forever()  # start websocket (non-blocking internally)
+            print('flag one')
+            # ================== DATA LOOP ==================
             while True:
-                print("🚀 Starting Market Feed...")
-                now_ist = datetime.now(ist)
+                print('loop started')
+                now = datetime.now(ist)
 
-                market_start = now_ist.replace(hour=9, minute=15, second=0, microsecond=0)
-                market_end = now_ist.replace(hour=15, minute=30, second=0, microsecond=0)
+                market_start = now.replace(hour=9, minute=15, second=0, microsecond=0)
+                market_end = now.replace(hour=15, minute=30, second=0, microsecond=0)
 
-                # if not (market_start <= now_ist <= market_end):
-                #     print("⏸ Market closed. Waiting...")
-                #     time.sleep(60)
-                #     continue
-
-                data.run_forever()
-                response = data.get_data()
-                print(response)
-                if 'LTP' not in response:
+                if not (market_start <= now <= market_end):
+                    print("⏸ Market closed. Sleeping 60s...")
+                    time.sleep(60)
                     continue
 
-                ltp = response['LTP']
+                response = data.get_data()
+                print(response)
+                if not response:
+                    continue
 
-                try:
-                    insert_strike_ltp_api(token=token, price=ltp,symbol=symbol)
-                    print(f"📍 LTP Sent | Token: {token} | Price: {ltp}")
-
-                except Exception as e:
-                    print(f"❌ API Insert Error: {e}")
+                if "LTP" in response:
+                    insert_strike_ltp_api(
+                        token=token,
+                        price=response["LTP"],
+                        symbol=symbol
+                    )
 
         except KeyboardInterrupt:
-            print("\n🛑 Stream stopped by user")
+            print("🛑 Stream stopped by user")
             break
 
         except Exception as e:
@@ -90,5 +95,14 @@ def start_strike_ltp_stream(token: str,symbol:str):
             retry_delay = min(retry_delay * 2, max_retry_delay)
 
 
-if __name__ == "__main__":
-    start_strike_ltp_stream(token="35011",symbol='BANKNIFTY-Jan2026-74400-CE')
+
+# if __name__ == "__main__":
+#     import threading
+#     t = threading.Thread(
+#         target=start_strike_ltp_stream,
+#         args=("35011", "BANKNIFTY-Jan2026-74400-CE"),
+#         daemon=True
+#     )
+#     t.start()
+#     t.join()
+
