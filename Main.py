@@ -202,6 +202,36 @@ class ApiDatabaseClient:
 
 
 
+tokens_utils = {
+    '25':{ #bank nifty 
+        "file_name":r"Bank-Nifty.xlsx",
+        "strike_roundup_value":200,
+        "lot_qty":30
+    },
+    "13":{ #nifty
+        "file_name":r"Nifty.xlsx",
+        "strike_roundup_value":100,
+        "lot_qty":65
+    },
+    "51":{#sensex
+        "file_name":r"Sensex.xlsx",
+        "strike_roundup_value":200,
+        "lot_qty":20
+    },
+    "27":{#nifty FIN
+        "file_name":r"Nifty-fin.xlsx",
+        "strike_roundup_value":100,
+        "lot_qty":60
+    },
+    "442":{#midcap nifty
+        "file_name":r"Midcap-Nifty.xlsx",
+        "strike_roundup_value":75,
+        "lot_qty":1290   
+         }
+}                
+
+
+
 # --- Strategy Orchestration Class ---
 class StrategyTrader:
     def __init__(self, api_client):
@@ -230,7 +260,7 @@ class StrategyTrader:
          
 
 
-    def trade_function(self, token: str) -> None:
+    def trade_function(self, token: str,strike_roundup_value: int,file_name: str,lot_qty:int) -> None:
         """
         Main trading loop for a single token. Handles data fetching, signal generation,
         entry/exit logic, and admin-triggered exits. Runs in its own thread per token.
@@ -249,7 +279,7 @@ class StrategyTrader:
                 return
 
             # Initialize the trading strategy with the token
-            strategy = HeikinAshiATRStrategy(token=stock_token)
+            strategy = HeikinAshiATRStrategy(token=stock_token,strike_roundup_value=strike_roundup_value)
             temp_csv = f"_temp_{stock_token}_ohlc.csv"  # Temporary CSV for strategy
             historical_df.to_csv(temp_csv, index=False)  # Save historical data
             strategy.load_historical_data(temp_csv)  # Load into strategy
@@ -357,7 +387,7 @@ class StrategyTrader:
                     
                     if datetime.now().time() <= time_c(15, 30):
                         # Set up for a buy position
-                        tokens_data_frame = pd.read_excel('strike-price.xlsx')  # Load strike price data
+                        tokens_data_frame = pd.read_excel(rf'strike_data/{file_name}')  # Load strike price data
                         option_token_row = tokens_data_frame[
                             (tokens_data_frame['strike_price'] == int(strike_price)) &
                             (tokens_data_frame['position'] == 'CE')
@@ -382,7 +412,8 @@ class StrategyTrader:
                             "DOE": str(option_token_row['DOE'].iloc[0]),
                             "strike_price": int(option_token_row['strike_price'].iloc[0]),
                             "position": str(option_token_row['position'].iloc[0]),
-                            "symbol": str(option_token_row['symbol'].iloc[0])
+                            "symbol": str(option_token_row['symbol'].iloc[0]),
+                            "lot_qty":lot_qty
                         }
                         # Only update state if API call succeeds
                         if self.api.send_entry_signal(
@@ -409,7 +440,7 @@ class StrategyTrader:
                     if datetime.now().time() <= time_c(15, 15):
                         # Set up for a sell position
                         print('SELL_ENTRY signal received')
-                        tokens_data_frame = pd.read_excel('strike-price.xlsx')  # Load strike price data
+                        tokens_data_frame = pd.read_excel(rf'strike_data/{file_name}')  # Load strike price data
                         print('length is :: ', len(tokens_data_frame), "strike price is ::", strike_price)
                         option_token_row = tokens_data_frame[
                             (tokens_data_frame['strike_price'] == int(strike_price)) &
@@ -435,7 +466,8 @@ class StrategyTrader:
                             "DOE": str(option_token_row['DOE'].iloc[0]),
                             "strike_price": int(option_token_row['strike_price'].iloc[0]),
                             "position": str(option_token_row['position'].iloc[0]),
-                            "symbol": str(option_token_row['symbol'].iloc[0])
+                            "symbol": str(option_token_row['symbol'].iloc[0]),
+                             "lot_qty":lot_qty
                         }
                         # Only update state if API call succeeds
                         if self.api.send_entry_signal(
@@ -545,7 +577,8 @@ class StrategyTrader:
             print('tokens are :: ', tokens)
             threads = []
             for token in tokens:
-                t = threading.Thread(target=self.trade_function, args=(token,))
+                util_dict = tokens_utils[str(token)]
+                t = threading.Thread(target=self.trade_function, args=(token,util_dict['strike_roundup_value'],utiil_dict['file_name'],util_dict['lot_qty']))
                 t.start()
                 print(f"Started thread for token={token}")
                 threads.append(t)

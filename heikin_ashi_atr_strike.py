@@ -26,6 +26,7 @@ class HeikinAshiATRStrategy:
     def __init__(self,
                  atr_len=14, atr_mult=2.5,
                  rsi_len=14,
+                 strike_roundup_value=100,
                  risk_reward=2.0,
                  etf='3min', ltf='5min', htf='15min',
                  token='token None',
@@ -51,6 +52,7 @@ class HeikinAshiATRStrategy:
         self.trailing_sl = None  # Trailing stop loss
         self.highest_since_entry = None  # Highest price since entry (for long)
         self.lowest_since_entry = None  # Lowest price since entry (for short)
+        self.strike_roundup_value = strike_roundup_value
 
     def reset_state(self):
         """Reset all position-related state variables to effectively 'cancel' a trade."""
@@ -305,7 +307,7 @@ class HeikinAshiATRStrategy:
             self.highest_since_entry = last['ha_high']
             self.stop_loss = last['ha_close'] - self.atr_mult * last['atr']
             self.take_profit = last['ha_close'] + self.risk_reward * (last['ha_close'] - self.stop_loss)
-            option_strike = ((last['ha_close'] - self.round_off_diff) // 100) * 100  # Round down to nearest 100
+            option_strike = ((last['ha_close'] - self.round_off_diff) // self.strike_roundup_value) * self.strike_roundup_value  # Round down to nearest strike_value
             logger.info(f"SIGNAL: BUY_ENTRY | Time: {last['timestamp']} | Open: {last['open']} | High: {last['high']} | Low: {last['low']} | Close: {last['close']} | HA_Close: {last['ha_close']} | SL: {self.stop_loss} | TP: {self.take_profit} | Strike: {option_strike}")
             return 'BUY_ENTRY', self.stop_loss, self.take_profit, option_strike
 
@@ -316,7 +318,7 @@ class HeikinAshiATRStrategy:
             self.lowest_since_entry = last['ha_low']
             self.stop_loss = last['ha_close'] + self.atr_mult * last['atr']
             self.take_profit = last['ha_close'] - self.risk_reward * (self.stop_loss - last['ha_close'])
-            option_strike = math.ceil((last['ha_close'] + self.round_off_diff) / 100) * 100  # Round up to nearest 100
+            option_strike = math.ceil((last['ha_close'] + self.round_off_diff) / self.strike_roundup_value) * self.strike_roundup_value  # Round up to nearest strike_roundup_value
             logger.info(f"SIGNAL: SELL_ENTRY | Time: {last['timestamp']} | Open: {last['open']} | High: {last['high']} | Low: {last['low']} | Close: {last['close']} | HA_Close: {last['ha_close']} | SL: {self.stop_loss} | TP: {self.take_profit} | Strike: {option_strike}")
             return 'SELL_ENTRY', self.stop_loss, self.take_profit, option_strike
 
