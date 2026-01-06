@@ -206,27 +206,32 @@ tokens_utils = {
     '25':{ #bank nifty 
         "file_name":r"Bank-Nifty.xlsx",
         "strike_roundup_value":200,
-        "lot_qty":30
+        "lot_qty":30,
+        'exchange':'NSE_FNO'
     },
     "13":{ #nifty
         "file_name":r"Nifty.xlsx",
         "strike_roundup_value":100,
-        "lot_qty":65
+        "lot_qty":65,
+        'exchange':'NSE_FNO'
     },
     "51":{#sensex
         "file_name":r"Sensex.xlsx",
         "strike_roundup_value":200,
-        "lot_qty":20
+        "lot_qty":20,
+        'exchange':'BSE_FNO'
     },
     "27":{#nifty FIN
         "file_name":r"Nifty-fin.xlsx",
         "strike_roundup_value":100,
-        "lot_qty":60
+        "lot_qty":60,
+        'exchange':'NSE_FNO'
     },
     "442":{#midcap nifty
         "file_name":r"Midcap-Nifty.xlsx",
         "strike_roundup_value":75,
-        "lot_qty":1290   
+        "lot_qty":120,
+        'exchange':'NSE_FNO'   
          }
 }                
 
@@ -260,7 +265,7 @@ class StrategyTrader:
          
 
 
-    def trade_function(self, token: str,strike_roundup_value: int,file_name: str,lot_qty:int) -> None:
+    def trade_function(self, token: str,strike_roundup_value: int,file_name: str,lot_qty:int,exchange:str) -> None:
         """
         Main trading loop for a single token. Handles data fetching, signal generation,
         entry/exit logic, and admin-triggered exits. Runs in its own thread per token.
@@ -413,7 +418,8 @@ class StrategyTrader:
                             "strike_price": int(option_token_row['strike_price'].iloc[0]),
                             "position": str(option_token_row['position'].iloc[0]),
                             "symbol": str(option_token_row['symbol'].iloc[0]),
-                            "lot_qty":lot_qty
+                            "lot_qty":lot_qty,
+                            "exchange":exchange
                         }
                         # Only update state if API call succeeds
                         if self.api.send_entry_signal(
@@ -467,7 +473,8 @@ class StrategyTrader:
                             "strike_price": int(option_token_row['strike_price'].iloc[0]),
                             "position": str(option_token_row['position'].iloc[0]),
                             "symbol": str(option_token_row['symbol'].iloc[0]),
-                             "lot_qty":lot_qty
+                             "lot_qty":lot_qty,
+                             "exchange":exchange
                         }
                         # Only update state if API call succeeds
                         if self.api.send_entry_signal(
@@ -578,7 +585,7 @@ class StrategyTrader:
             threads = []
             for token in tokens:
                 util_dict = tokens_utils[str(token)]
-                t = threading.Thread(target=self.trade_function, args=(token,util_dict['strike_roundup_value'],util_dict['file_name'],util_dict['lot_qty']))
+                t = threading.Thread(target=self.trade_function, args=(token,util_dict['strike_roundup_value'],util_dict['file_name'],util_dict['lot_qty'],util_dict['exchange']))
                 t.start()
                 print(f"Started thread for token={token}")
                 threads.append(t)
