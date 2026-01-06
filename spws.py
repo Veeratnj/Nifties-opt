@@ -23,7 +23,7 @@ RATE_LIMIT_SECONDS = 1.5  # Min time between updates for same token
 class HighPerformanceStreamer:
     def __init__(self):
         # Load strike data once
-        df = pd.read_excel(r"strike_data\Bank-Nifty.xlsx")
+        df = pd.read_excel(r"strike_data/Bank-Nifty.xlsx")
         df["token"] = df["token"].astype(str)
         self.token_symbol = dict(zip(df["token"], df["symbol"]))
         
