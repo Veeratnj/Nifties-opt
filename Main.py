@@ -578,7 +578,7 @@ class StrategyTrader:
             threads = []
             for token in tokens:
                 util_dict = tokens_utils[str(token)]
-                t = threading.Thread(target=self.trade_function, args=(token,util_dict['strike_roundup_value'],utiil_dict['file_name'],util_dict['lot_qty']))
+                t = threading.Thread(target=self.trade_function, args=(token,util_dict['strike_roundup_value'],util_dict['file_name'],util_dict['lot_qty']))
                 t.start()
                 print(f"Started thread for token={token}")
                 threads.append(t)
