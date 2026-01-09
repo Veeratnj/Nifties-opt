@@ -251,8 +251,8 @@ class StrategyTrader:
         Returns True if market is open, False otherwise.
         """
         current_time = datetime.now(IST).time()
-        market_open = time_c(9, 30)  # 9:30 AM
-        market_close = time_c(15, 15)  # 2:00 PM (14:00)
+        market_open = time_c(9, 27)  # 9:30 AM
+        market_close = time_c(13, 30)  # 2:00 PM (14:00)
         return market_open <= current_time <= market_close
         # return True
 
@@ -321,7 +321,8 @@ class StrategyTrader:
                 if previous_entry_exit_key is not None and stop_loss is not None and target is not None:
                     if previous_entry_exit_key == 'BUY_EXIT':
                         # Exit if LTP hits stop loss, target, or time is after 14:25
-                        if ltp_price <= stop_loss or ltp_price >= target or datetime.now().time() >= time_c(14, 25):
+                        # if ltp_price <= stop_loss or ltp_price >= target or datetime.now().time() >= time_c(14, 25):
+                        if ltp_price <= stop_loss or ltp_price >= target :
                             exit_flag = True
                             print('exit flag is true')
                             logger.info(f"buy exit ltp_price={ltp_price} stop_loss={stop_loss} target={target} previous_entry_exit_key={previous_entry_exit_key} stock_token={stock_token} cond1{ltp_price <= stop_loss} cond2{ltp_price >= target}")
@@ -332,7 +333,8 @@ class StrategyTrader:
                             logger.info(f"Admin exit signal for BUY_EXIT stock_token={stock_token}")
                     elif previous_entry_exit_key == 'SELL_EXIT':
                         # Exit if LTP hits stop loss, target, or time is after 14:25
-                        if ltp_price >= stop_loss or ltp_price <= target or datetime.now().time() >= time_c(14, 25):
+                        # if ltp_price >= stop_loss or ltp_price <= target or datetime.now().time() >= time_c(14, 25):
+                        if ltp_price >= stop_loss or ltp_price <= target :
                             exit_flag = True
                             print('exit flag is true')
                             logger.info(f"sell exit ltp_price={ltp_price} stop_loss={stop_loss} target={target} previous_entry_exit_key={previous_entry_exit_key} stock_token={stock_token} cond1{ltp_price >= stop_loss} cond2{ltp_price <= target}")
@@ -390,7 +392,7 @@ class StrategyTrader:
 
                 if signal == 'BUY_ENTRY':
                     
-                    if datetime.now().time() <= time_c(15, 30):
+                    if datetime.now().time() <= time_c(13, 30):
                         # Set up for a buy position
                         tokens_data_frame = pd.read_excel(rf'strike_data/{file_name}')  # Load strike price data
                         option_token_row = tokens_data_frame[
@@ -443,7 +445,7 @@ class StrategyTrader:
                         strategy.reset_state()
 
                 elif signal == 'SELL_ENTRY':
-                    if datetime.now().time() <= time_c(15, 15):
+                    if datetime.now().time() <= time_c(13, 30):
                         # Set up for a sell position
                         print('SELL_ENTRY signal received')
                         tokens_data_frame = pd.read_excel(rf'strike_data/{file_name}')  # Load strike price data
