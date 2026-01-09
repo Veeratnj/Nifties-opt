@@ -31,7 +31,7 @@ class HeikinAshiATRStrategy:
                  etf='3min', ltf='5min', htf='15min',
                  token='token None',
                  stock_symbol='symbol None',
-                 round_off_diff=150):
+                 round_off_diff=100):
         # Initialize strategy parameters
         self.atr_len = atr_len  # ATR window length
         self.atr_mult = atr_mult  # ATR multiplier for stop loss
@@ -307,7 +307,8 @@ class HeikinAshiATRStrategy:
             self.highest_since_entry = last['ha_high']
             self.stop_loss = last['ha_close'] - self.atr_mult * last['atr']
             self.take_profit = last['ha_close'] + self.risk_reward * (last['ha_close'] - self.stop_loss)
-            option_strike = ((last['ha_close'] - self.round_off_diff) // self.strike_roundup_value) * self.strike_roundup_value  # Round down to nearest strike_value
+            option_strike = ((last['ha_close'] - self.round_off_diff) // 100) * 100  # Round down to nearest strike_value
+            print('long',last['ha_close'],option_strike)
             logger.info(f"SIGNAL: BUY_ENTRY | Time: {last['timestamp']} | Open: {last['open']} | High: {last['high']} | Low: {last['low']} | Close: {last['close']} | HA_Close: {last['ha_close']} | SL: {self.stop_loss} | TP: {self.take_profit} | Strike: {option_strike}")
             return 'BUY_ENTRY', self.stop_loss, self.take_profit, option_strike
 
@@ -318,7 +319,8 @@ class HeikinAshiATRStrategy:
             self.lowest_since_entry = last['ha_low']
             self.stop_loss = last['ha_close'] + self.atr_mult * last['atr']
             self.take_profit = last['ha_close'] - self.risk_reward * (self.stop_loss - last['ha_close'])
-            option_strike = math.ceil((last['ha_close'] + self.round_off_diff) / self.strike_roundup_value) * self.strike_roundup_value  # Round up to nearest strike_roundup_value
+            option_strike = math.ceil((last['ha_close'] + self.round_off_diff) / 100) * 100  # Round up to nearest strike_roundup_value
+            print('short',last['ha_close'],option_strike)
             logger.info(f"SIGNAL: SELL_ENTRY | Time: {last['timestamp']} | Open: {last['open']} | High: {last['high']} | Low: {last['low']} | Close: {last['close']} | HA_Close: {last['ha_close']} | SL: {self.stop_loss} | TP: {self.take_profit} | Strike: {option_strike}")
             return 'SELL_ENTRY', self.stop_loss, self.take_profit, option_strike
 
@@ -327,14 +329,14 @@ class HeikinAshiATRStrategy:
 
 if __name__ == "__main__":
     # Example usage: run strategy on historical and simulated live data
-    strategy = HeikinAshiATRStrategy(token="NSE_FO|54086", stock_symbol="NIFTY25AUG2450000PE")  # Initialize strategy
+    strategy = HeikinAshiATRStrategy(token="Nifty", stock_symbol="Nifty50")  # Initialize strategy
     # strategy.load_historical_data('old_3min.csv')  # Load historical data
-    strategy.load_historical_data('old_3min.csv')  # Load historical data
+    strategy.load_historical_data(r'split_output/output_part_1.csv')  # Load historical data
 
     signals_data = []  # Store signals for later analysis
 
     # Simulate live data addition from new_3min.csv
-    live_data = pd.read_csv('new_3min.csv')
+    live_data = pd.read_csv(r'split_output/output_part_2.csv')
     for index, row in live_data.iterrows():
         # Prepare new data row for each tick
         new_data = {
