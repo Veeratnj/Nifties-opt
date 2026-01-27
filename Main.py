@@ -211,7 +211,7 @@ class ApiDatabaseClient:
     
 
     def get_stop_loss_target(self,unique_id:str):
-        url = f"{self.base_url}/signals/{unique_id}"
+        url = f"{self.base_url}/signals/get-stop-loss-target/v1/{unique_id}"
         resp = self.session.get(url)
         resp.raise_for_status()
         data = resp.json()
