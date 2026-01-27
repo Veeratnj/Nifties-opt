@@ -133,6 +133,9 @@ class ApiDatabaseClient:
             strike_price_token (str): The strike price token
             strategy_code (str): Code of the strategy
             unique_id (str): Unique ID for this signal
+            stop_loss (float): Stop loss value
+            target (float): Target value
+            description (str): Description of the signal
             
         Returns:
             bool: True if signal sent successfully, False otherwise
@@ -147,6 +150,9 @@ class ApiDatabaseClient:
             "unique_id": unique_id,
             "strike_price_token": strike_price_token,
             "strategy_code": strategy_code,
+            "stop_loss": stop_loss,
+            "target": target,
+            "description": description,
             "strike_data": strike_data
         }
         
@@ -161,7 +167,7 @@ class ApiDatabaseClient:
             return True
             # return False
 
-    def send_exit_signal(self, token: str, signal: str, strike_price_token: str, strategy_code: str, unique_id: str,strike_data:dict) -> bool:
+    def send_exit_signal(self, token: str, signal: str, strike_price_token: str, strategy_code: str, unique_id: str,strike_data:dict,stop_loss:float,target:float,description:str) -> bool:
         '''
         Send trading exit signal to the API.
         This is a POST API with no authentication required.
@@ -186,7 +192,10 @@ class ApiDatabaseClient:
             "unique_id": unique_id,
             "strike_price_token": strike_price_token,
             "strategy_code": strategy_code,
-            "strike_data": strike_data
+            "strike_data": strike_data,
+            "stop_loss": stop_loss,
+            "target": target,
+            "description": description
         }
         
         try:
@@ -199,6 +208,16 @@ class ApiDatabaseClient:
             logger.error(f"Failed to send exit signal for token {token}: {e}")
             return True
             # return False
+    
+
+    def get_stop_loss_target(self,unique_id:str):
+        url = f"{self.base_url}/signals/{unique_id}"
+        resp = self.session.get(url)
+        resp.raise_for_status()
+        data = resp.json()
+        return data['stop_loss'],data['target']
+        
+        
 
 
 
@@ -319,9 +338,14 @@ class StrategyTrader:
 
                 # Check for exit conditions if a position is open
                 if previous_entry_exit_key is not None and stop_loss is not None and target is not None:
+                    temp_stop_loss,temp_target = self.get_stop_loss_target(unique_id)
+                    if temp_stop_loss is not None and temp_target is not None:
+                        stop_loss = temp_stop_loss
+                        target = temp_target
                     if previous_entry_exit_key == 'BUY_EXIT':
                         # Exit if LTP hits stop loss, target, or time is after 14:25
                         # if ltp_price <= stop_loss or ltp_price >= target or datetime.now().time() >= time_c(14, 25):
+                        
                         if ltp_price <= stop_loss or ltp_price >= target :
                             exit_flag = True
                             print('exit flag is true')
@@ -431,6 +455,9 @@ class StrategyTrader:
                             strategy_code=self.strategy_code, 
                             unique_id=temp_unique_id,
                             strike_data=strike_data,
+                            stop_loss=stop_loss,
+                            target=target,
+                            description='natural entry signal from 3mins strategy'
                             ):
                             previous_entry_exit_key = 'BUY_EXIT'
                             unique_id = temp_unique_id
@@ -486,6 +513,9 @@ class StrategyTrader:
                             strategy_code=self.strategy_code, 
                             unique_id=temp_unique_id,
                             strike_data=strike_data,
+                            stop_loss=stop_loss,
+                            target=target,
+                            description='natural entry signal from 3mins strategy'
 
                             ):
                             previous_entry_exit_key = 'SELL_EXIT'
@@ -516,7 +546,10 @@ class StrategyTrader:
                                 strike_price_token=strike_price_token, 
                                 strategy_code=self.strategy_code, 
                                 unique_id=unique_id,
-                                strike_data=strike_data
+                                strike_data=strike_data,
+                                stop_loss=stop_loss,
+                                target=target,
+                                description='natural exit signal from 3mins strategy'
                                 )
                         else:
                             logger.error(f"Cannot send BUY_EXIT: strike_price_token is None")
@@ -550,7 +583,10 @@ class StrategyTrader:
                                 strike_price_token=strike_price_token, 
                                 strategy_code=self.strategy_code, 
                                 unique_id=unique_id,
-                                strike_data=strike_data
+                                strike_data=strike_data,
+                                stop_loss=stop_loss,
+                                target=target,
+                                description='natural exit signal from 3mins strategy'  
                                 )
                         else:
                             logger.error(f"Cannot send SELL_EXIT: strike_price_token is None")
