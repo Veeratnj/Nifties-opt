@@ -122,7 +122,12 @@ class ApiDatabaseClient:
         data = resp.json()["data"]
         return data["last_update"], data["ltp"]
 
-    def send_entry_signal(self, token: str, signal: str, strike_price_token: str, strategy_code: str,unique_id:str,strike_data:dict) -> bool:
+    def send_entry_signal(self, token: str, 
+    signal: str, strike_price_token: str, 
+    strategy_code: str,unique_id:str,
+    strike_data:dict,
+    stop_loss:float,target:float,
+    description:str) -> bool:
         '''
         Send trading entry signal to the API.
         This is a POST API with no authentication required.
