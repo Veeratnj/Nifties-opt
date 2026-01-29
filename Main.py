@@ -343,7 +343,7 @@ class StrategyTrader:
 
                 # Check for exit conditions if a position is open
                 if previous_entry_exit_key is not None and stop_loss is not None and target is not None:
-                    temp_stop_loss,temp_target = self.get_stop_loss_target(unique_id)
+                    temp_stop_loss,temp_target = self.api.get_stop_loss_target(unique_id)
                     if temp_stop_loss is not None and temp_target is not None:
                         stop_loss = temp_stop_loss
                         target = temp_target
