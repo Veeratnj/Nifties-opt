@@ -250,6 +250,13 @@ class ApiDatabaseClient:
             raise Exception(f"API Error: {response.status_code} - {response.text}")
 
         return response.json()  
+    
+    def get_strike_pice_close_signal(self,unique_id:str):
+        url = f"{self.base_url}/signals/get-strike-price-close-trade-signal/{unique_id}"
+        resp = self.session.get(url)
+        resp.raise_for_status()
+        data = resp.json()
+        return data['data']
 
 
 
@@ -399,7 +406,10 @@ class StrategyTrader:
                             exit_flag = True
                             print('admin exit signal received, exiting sell position')
                             logger.info(f"Admin exit signal for SELL_EXIT stock_token={stock_token}")
-
+                    elif self.api.get_strike_pice_close_signal(unique_id):
+                        exit_flag = True
+                        print('admin exit signal received, exiting current position')
+                        logger.info(f"Admin strike price close signal for current position stock_token={stock_token}")
                 # Fetch the latest OHLC candle (use actual stock_token)
                 try:
                     ohlc_result = self.api.fetch_ohlc(token=stock_token, limit=1)
