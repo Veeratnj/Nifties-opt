@@ -222,7 +222,34 @@ class ApiDatabaseClient:
         data = resp.json()
         return data['stop_loss'],data['target']
         
-        
+    def update_stop_loss_target(self,unique_id: str, stop_loss: float = None, target: float = None):
+        """
+        Calls the /update-stop-loss-target API
+
+        :param unique_id: Unique trade ID
+        :param stop_loss: New stop loss value (optional)
+        :param target: New target value (optional)
+        :return: API response JSON
+        """
+
+        url = f"{self.base_url}/signals/update-stop-loss-target/v1"
+
+        params = {
+            "unique_id": unique_id
+        }
+
+        # Only send values if provided
+        if stop_loss is not None:
+            params["stop_loss"] = stop_loss
+        if target is not None:
+            params["target"] = target
+
+        response = self.session.put(url, params=params)
+
+        if response.status_code != 200:
+            raise Exception(f"API Error: {response.status_code} - {response.text}")
+
+        return response.json()  
 
 
 
@@ -407,6 +434,7 @@ class StrategyTrader:
 
                 # Generate trading signal from strategy
                 signal_result = strategy.generate_signal()
+                # logger.info(f"Signal generated: {signal_result}")
                 if isinstance(signal_result, tuple):
                     signal, stop_loss_, target_, strike_price = signal_result
                 else:
@@ -417,6 +445,8 @@ class StrategyTrader:
                     stop_loss = stop_loss_
                 if target_ is not None:
                     target = target_
+                if stop_loss is not None and target is not None and unique_id is not None:
+                    self.api.update_stop_loss_target(unique_id, stop_loss, target)
                 logger.info(f"Signal generated: {signal}  strike price  {strike_price} ")
 
                 if signal == 'BUY_ENTRY':
