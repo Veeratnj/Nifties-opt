@@ -307,7 +307,7 @@ class HeikinAshiATRStrategy:
             self.highest_since_entry = last['ha_high']
             self.stop_loss = last['ha_close'] - self.atr_mult * last['atr']
             self.take_profit = last['ha_close'] + self.risk_reward * (last['ha_close'] - self.stop_loss)
-            option_strike = ((last['ha_close'] - self.round_off_diff) // 100) * 100  # Round down to nearest strike_value
+            option_strike = ((last['ha_close'] - self.round_off_diff) // self.strike_roundup_value) * self.strike_roundup_value  # Round down to nearest strike_value
             print('long',last['ha_close'],option_strike)
             logger.info(f"SIGNAL: BUY_ENTRY | Time: {last['timestamp']} | Open: {last['open']} | High: {last['high']} | Low: {last['low']} | Close: {last['close']} | HA_Close: {last['ha_close']} | SL: {self.stop_loss} | TP: {self.take_profit} | Strike: {option_strike}")
             return 'BUY_ENTRY', self.stop_loss, self.take_profit, option_strike
@@ -319,7 +319,7 @@ class HeikinAshiATRStrategy:
             self.lowest_since_entry = last['ha_low']
             self.stop_loss = last['ha_close'] + self.atr_mult * last['atr']
             self.take_profit = last['ha_close'] - self.risk_reward * (self.stop_loss - last['ha_close'])
-            option_strike = math.ceil((last['ha_close'] + self.round_off_diff) / 100) * 100  # Round up to nearest strike_roundup_value
+            option_strike = math.ceil((last['ha_close'] + self.round_off_diff) / self.strike_roundup_value) * self.strike_roundup_value  # Round up to nearest strike_roundup_value
             print('short',last['ha_close'],option_strike)
             logger.info(f"SIGNAL: SELL_ENTRY | Time: {last['timestamp']} | Open: {last['open']} | High: {last['high']} | Low: {last['low']} | Close: {last['close']} | HA_Close: {last['ha_close']} | SL: {self.stop_loss} | TP: {self.take_profit} | Strike: {option_strike}")
             return 'SELL_ENTRY', self.stop_loss, self.take_profit, option_strike

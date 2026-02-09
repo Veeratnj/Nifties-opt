@@ -305,12 +305,12 @@ class StrategyTrader:
     def is_market_open(self) -> bool:
         """
         Check if the market is currently open.
-        Market hours: 9:30 AM to 2:00 PM (14:00) IST
+        Market hours: 9:27 AM to 3:30 PM (15:30) IST
         Returns True if market is open, False otherwise.
         """
         current_time = datetime.now(IST).time()
-        market_open = time_c(9, 27)  # 9:30 AM
-        market_close = time_c(13, 30)  # 2:00 PM (14:00)
+        market_open = time_c(9, 27)  # 9:27 AM
+        market_close = time_c(15, 30)  # 3:30 PM (15:30)
         return market_open <= current_time <= market_close
         # return True
 
@@ -428,7 +428,7 @@ class StrategyTrader:
                     time.sleep(2)  # Wait before checking again
                     continue
                 previous_candle_time = start_time
-                print('previous_candle_time is ==', open_,high,low,close)
+                print('previous_candle is ==', open_,high,low,close)
                 print('start time is ==', start_time)
 
                 # Prepare live data for the strategy
@@ -444,6 +444,7 @@ class StrategyTrader:
 
                 # Generate trading signal from strategy
                 signal_result = strategy.generate_signal()
+                print('signal result is ==', signal_result)
                 # logger.info(f"Signal generated: {signal_result}")
                 if isinstance(signal_result, tuple):
                     signal, stop_loss_, target_, strike_price = signal_result
@@ -461,7 +462,7 @@ class StrategyTrader:
 
                 if signal == 'BUY_ENTRY':
                     
-                    if datetime.now().time() <= time_c(13, 30):
+                    if datetime.now().time() <= time_c(15, 0):
                         # Set up for a buy position
                         tokens_data_frame = pd.read_excel(rf'strike_data/{file_name}')  # Load strike price data
                         option_token_row = tokens_data_frame[
@@ -517,7 +518,7 @@ class StrategyTrader:
                         strategy.reset_state()
 
                 elif signal == 'SELL_ENTRY':
-                    if datetime.now().time() <= time_c(13, 30):
+                    if datetime.now().time() <= time_c(15, 0):
                         # Set up for a sell position
                         print('SELL_ENTRY signal received')
                         tokens_data_frame = pd.read_excel(rf'strike_data/{file_name}')  # Load strike price data
@@ -583,6 +584,7 @@ class StrategyTrader:
                         open_order = False  # Mark order as closed
                         print('BUY_EXIT: Closing buy position')
                         logger.info(f"BUY_EXIT executed for stock_token={stock_token}")
+                        strategy.reset_state() # Ensure strategy state is reset
                         # Validate variables before sending exit signal
                         if strike_price_token is not None:
                             self.api.send_exit_signal(
@@ -620,6 +622,7 @@ class StrategyTrader:
                         open_order = False  # Mark order as closed
                         print('SELL_EXIT: Closing sell position')
                         logger.info(f"SELL_EXIT executed for stock_token={stock_token}")
+                        strategy.reset_state() # Ensure strategy state is reset
                         # Validate variables before sending exit signal
                         if strike_price_token is not None:
                             self.api.send_exit_signal(
