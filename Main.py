@@ -259,6 +259,45 @@ class ApiDatabaseClient:
         return data['data']
 
 
+    def get_symbol_token_file(self, token: str):
+        """
+        Fetch symbol token file from API
+        :param token: token string
+        :return: (file_base64, file_path)
+        """
+        #http://localhost:8001/db/signals/get-symbol-token-file/25
+        url = f"{self.base_url}/signals/get-symbol-token-file/{token}"
+    
+        resp = self.session.get(url)
+        # resp.raise_for_status()
+        
+        data = resp.json()
+        print('data :: ', data)
+        base64_file = data.get("file")
+        file_path = data.get("file_path")
+
+        print('base64_file :: ', base64_file)
+        print('file_path :: ', file_path)
+        if base64_file:
+            print('flag2')
+            os.makedirs(file_path, exist_ok=True)
+
+            # 🔹 If API already gives file_path use filename from it
+            file_name = os.path.basename(file_path) if file_path else "output_file"
+
+            full_path = os.path.join(file_path, file_name)
+            print('flag1')
+            # 🔹 Decode and write file
+            with open(full_path, "wb") as f:
+                f.write(base64.b64decode(base64_file))
+
+            print("✅ File saved at:", full_path)
+        else:
+            print("❌ No file found for this token")
+
+        return data.get("file"),data.get("file_path") # base64
+
+
 
 tokens_utils = {
     '25':{ #bank nifty 
@@ -670,6 +709,9 @@ class StrategyTrader:
             print('tokens are :: ', tokens)
             threads = []
             for token in tokens:
+                self.api.get_symbol_token_file(token)
+                # continue
+                
                 util_dict = tokens_utils[str(token)]
                 t = threading.Thread(target=self.trade_function, args=(token,util_dict['strike_roundup_value'],util_dict['file_name'],util_dict['lot_qty'],util_dict['exchange']))
                 t.start()
@@ -688,6 +730,8 @@ if __name__ == "__main__":
     api_client = ApiDatabaseClient()
     api_client.fetch_latest_ltp(stock_token='25')
     print('api client created')
+    # base64_file = api_client.get_symbol_token_file('25')
+    # print('base64_file :: ', base64_file)
     trader = StrategyTrader(api_client)
     print('trader created')
     trader.run()
