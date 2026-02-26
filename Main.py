@@ -292,7 +292,7 @@ class ApiDatabaseClient:
             with open(file_path, "wb") as f:
                 f.write(base64.b64decode(base64_file))
 
-            print("✅ File saved at:", full_path)
+            print("✅ File saved at:", file_path)
         else:
             print("❌ No file found for this token")
 
