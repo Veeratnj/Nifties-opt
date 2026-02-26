@@ -280,15 +280,15 @@ class ApiDatabaseClient:
         print('file_path :: ', file_path)
         if base64_file:
             print('flag2')
-            os.makedirs(file_path, exist_ok=True)
+            # os.makedirs(file_path, exist_ok=True)
 
             # 🔹 If API already gives file_path use filename from it
-            file_name = os.path.basename(file_path) if file_path else "output_file"
+            # file_name = os.path.basename(file_path) if file_path else "output_file"
 
-            full_path = os.path.join(file_path, file_name)
+            # full_path = os.path.join(file_path, file_name)
             print('flag1')
             # 🔹 Decode and write file
-            with open(full_path, "wb") as f:
+            with open(file_path, "wb") as f:
                 f.write(base64.b64decode(base64_file))
 
             print("✅ File saved at:", full_path)
