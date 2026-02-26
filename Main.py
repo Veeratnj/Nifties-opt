@@ -32,6 +32,7 @@ import pytz
 import requests
 from dotenv import load_dotenv
 import os
+import base64
 
 # --- Local Imports ---
 # import psql
