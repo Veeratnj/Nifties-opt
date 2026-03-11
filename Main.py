@@ -350,7 +350,7 @@ class StrategyTrader:
         """
         current_time = datetime.now(IST).time()
         market_open = time_c(9, 27)  # 9:27 AM
-        market_close = time_c(15, 30)  # 3:30 PM (15:30)
+        market_close = time_c(13, 00)  # 1:00 PM 
         return market_open <= current_time <= market_close
         # return True
 
@@ -502,7 +502,7 @@ class StrategyTrader:
 
                 if signal == 'BUY_ENTRY':
                     
-                    if datetime.now().time() <= time_c(15, 0):
+                    if datetime.now().time() <= time_c(13, 0):
                         # Set up for a buy position
                         tokens_data_frame = pd.read_excel(rf'strike_data/{file_name}')  # Load strike price data
                         option_token_row = tokens_data_frame[
@@ -554,11 +554,11 @@ class StrategyTrader:
                             logger.error(f"Failed to send BUY_ENTRY signal, resetting strategy state")
                             strategy.reset_state()
                     else:
-                        logger.info(f"BUY_ENTRY signal ignored due to time limit (> 11:30 AM). Resetting strategy state.")
+                        logger.info(f"BUY_ENTRY signal ignored due to time limit  Resetting strategy state.")
                         strategy.reset_state()
 
                 elif signal == 'SELL_ENTRY':
-                    if datetime.now().time() <= time_c(15, 0):
+                    if datetime.now().time() <= time_c(13, 0):
                         # Set up for a sell position
                         print('SELL_ENTRY signal received')
                         tokens_data_frame = pd.read_excel(rf'strike_data/{file_name}')  # Load strike price data
@@ -614,7 +614,7 @@ class StrategyTrader:
                             logger.error(f"Failed to send SELL_ENTRY signal, resetting strategy state")
                             strategy.reset_state()
                     else:
-                        logger.info(f"SELL_ENTRY signal ignored due to time limit (> 11:30 AM). Resetting strategy state.")
+                        logger.info(f"SELL_ENTRY signal ignored due to time limit. Resetting strategy state.")
                         strategy.reset_state()
 
                 # --- EXIT conditions ---
