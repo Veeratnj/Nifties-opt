@@ -289,6 +289,7 @@ class ApiDatabaseClient:
             # full_path = os.path.join(file_path, file_name)
             print('flag1')
             # 🔹 Decode and write file
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
             with open(file_path, "wb") as f:
                 f.write(base64.b64decode(base64_file))
 
