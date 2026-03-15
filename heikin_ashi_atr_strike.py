@@ -193,7 +193,7 @@ class HeikinAshiATRStrategy:
         in_session = pd.to_datetime("09:15").time() <= ts_time <= pd.to_datetime("15:15").time()
         self.df.at[idx, 'in_session'] = in_session
 
-    def detect_bos_choch(df: pd.DataFrame, lookback=60):
+    def detect_bos_choch(self,df: pd.DataFrame, lookback=60):
         # Detect Break of Structure (BOS) and Change of Character (CHOCH) in price action
         df = df.copy()
         df['prev_swing_high'] = df['high'].shift(1).rolling(lookback).max()  # Previous swing high

@@ -36,7 +36,9 @@ import base64
 
 # --- Local Imports ---
 # import psql
-from heikin_ashi_atr_strike import HeikinAshiATRStrategy
+# from heikin_ashi_atr_strike import HeikinAshiATRStrategy
+from algo import HeikinAshiATRStrategy
+
 
 # --- Constants ---
 IST = pytz.timezone("Asia/Kolkata")
