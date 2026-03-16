@@ -50,7 +50,8 @@ class HeikinAshiATRStrategy:
         round_off_diff=100,
         etf="3min",
         htf="15min",
-        body_expansion_factor=0.68
+        body_expansion_factor=0.68,
+        token = None  # Token identifier
     ):
 
         # Strategy parameters
@@ -60,6 +61,7 @@ class HeikinAshiATRStrategy:
         self.risk_reward = risk_reward
         self.strike_roundup_value = strike_roundup_value
         self.round_off_diff = round_off_diff
+        self.token = token
 
         # Timeframes
         self.etf = etf
