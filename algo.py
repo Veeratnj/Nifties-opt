@@ -137,7 +137,7 @@ class HeikinAshiATRStrategy:
         if "start_time" in self.df.columns:
             self.df.rename(columns={"start_time": "timestamp"}, inplace=True)
 
-        self.df["timestamp"] = pd.to_datetime(self.df["timestamp"], infer_datetime_format=True)
+        self.df["timestamp"] = pd.to_datetime(self.df["timestamp"])
         self.df.sort_values("timestamp", inplace=True)
         self.df.reset_index(drop=True, inplace=True)
 
