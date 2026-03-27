@@ -275,11 +275,11 @@ class ApiDatabaseClient:
         # resp.raise_for_status()
         
         data = resp.json()
-        print('data :: ', data)
+        # print('data :: ', data)
         base64_file = data.get("file")
         file_path = data.get("file_path")
 
-        print('base64_file :: ', base64_file)
+        # print('base64_file :: ', base64_file)
         print('file_path :: ', file_path)
         if base64_file:
             print('flag2')
