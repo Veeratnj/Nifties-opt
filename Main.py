@@ -461,6 +461,7 @@ class StrategyTrader:
                         time.sleep(5)
                         continue
                     start_time, open_, high, low, close = ohlc_result
+                    print('ohlc result is ==', ohlc_result)
                 except Exception as e:
                     logger.error(f"Failed to fetch OHLC for token {stock_token}: {e}")
                     traceback.print_exc()
